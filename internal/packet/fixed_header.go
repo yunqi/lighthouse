@@ -1,0 +1,49 @@
+/*
+ *    Copyright 2021 chenquan
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
+package packet
+
+import "io"
+
+type (
+
+	// FixedHeader represents the FixedHeader of the MQTT packet
+	FixedHeader struct {
+		PacketType   PacketType
+		Flags        byte
+		RemainLength int
+	}
+)
+
+// Encode encodes the FixedHeader struct into bytes and writes it into io.Writer.
+func (fh *FixedHeader) Encode(w io.Writer) error {
+	var err error
+	b := make([]byte, 1)
+	packetType := fh.PacketType << 4
+	b[0] = packetType | fh.Flags
+	// 1st bit
+	_, err = w.Write(b)
+	if err != nil {
+		return err
+	}
+	lengthBytes, err := EncodeRemainLength(fh.RemainLength)
+	if err != nil {
+		return err
+	}
+	// 2nd bit
+	_, err = w.Write(lengthBytes)
+	return err
+}
