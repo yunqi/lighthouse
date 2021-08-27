@@ -19,14 +19,13 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/chenquan/lighthouse/internal/xlog"
 	"github.com/gorilla/websocket"
 	"net"
 	"os"
 	"time"
 )
 
-var log = xlog.Logger()
+//var log = xlog.Logger()
 
 type (
 	Server interface {
@@ -93,7 +92,7 @@ func (s *server) serveTCP() {
 		// 创建一个客户端连接
 		_ = accept
 		c := newClient(s, accept)
-		log.Info("创建一个新的客户端连接")
+		//log.Info("创建一个新的客户端连接")
 		// 监听该连接
 		go c.listen()
 	}

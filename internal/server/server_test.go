@@ -17,13 +17,12 @@
 package server
 
 import (
-	"github.com/chenquan/lighthouse/internal/xlog"
 	"testing"
 )
 
 func TestName(t *testing.T) {
-	xlog.Pro()
-	newServer := NewServer(WithTcpListen(":1883"))
-	newServer.serveTCP()
-	select {}
+	//xlog.Pro()
+	//newServer := NewServer(WithTcpListen(":1883"))
+	//newServer.serveTCP()
+	//select {}
 }
