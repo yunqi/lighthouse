@@ -22,7 +22,7 @@ import (
 
 func TestName(t *testing.T) {
 	//xlog.Pro()
-	newServer := NewServer(WithTcpListen(":1883"))
-	newServer.serveTCP()
-	select {}
+	//newServer := NewServer(WithTcpListen(":1883"))
+	//newServer.serveTCP()
+	//select {}
 }
