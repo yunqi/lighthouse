@@ -17,7 +17,7 @@
 package packet
 
 import (
-	"encoding/json"
+	"fmt"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
@@ -29,12 +29,13 @@ type (
 	}
 )
 
-// NewDisConnect returns a Disconnect instance by the given FixHeader and io.Reader
-func NewDisConnect(fixedHeader *FixedHeader, version Version, r io.Reader) (*Disconnect, error) {
+// NewDisconnect returns a Disconnect instance by the given FixHeader and io.Reader
+func NewDisconnect(fixedHeader *FixedHeader, version Version, r io.Reader) (*Disconnect, error) {
 	if fixedHeader.Flags != 0 {
 		return nil, xerror.ErrMalformed
 	}
 	p := &Disconnect{FixedHeader: fixedHeader, Version: version}
+	p.FixedHeader.RemainLength = 0
 	err := p.Decode(r)
 	if err != nil {
 		return nil, err
@@ -44,20 +45,13 @@ func NewDisConnect(fixedHeader *FixedHeader, version Version, r io.Reader) (*Dis
 
 func (d *Disconnect) Encode(w io.Writer) (err error) {
 	d.FixedHeader = &FixedHeader{PacketType: DISCONNECT, Flags: FixedHeaderFlagReserved}
-	d.FixedHeader.RemainLength = 0
 	return d.FixedHeader.Encode(w)
 }
 
-func (d *Disconnect) Decode(r io.Reader) (err error) {
-	b := make([]byte, d.FixedHeader.RemainLength)
-	_, err = io.ReadFull(r, b)
-	if err != nil {
-		return xerror.ErrMalformed
-	}
+func (d *Disconnect) Decode(_ io.Reader) (err error) {
 	return
 }
 
 func (d *Disconnect) String() string {
-	b, _ := json.Marshal(d)
-	return string(b)
+	return fmt.Sprintf("Disconnect - Version: %s", d.Version)
 }

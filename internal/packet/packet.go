@@ -323,7 +323,7 @@ func NewPacket(fixedHeader *FixedHeader, version Version, r io.Reader) (Packet, 
 	case PINGREQ:
 		return NewPingreq(fixedHeader, r)
 	case DISCONNECT:
-		return NewDisConnect(fixedHeader, version, r)
+		return NewDisconnect(fixedHeader, version, r)
 	case UNSUBACK:
 		return NewSuback(fixedHeader, version, r)
 	case PINGRESP:
