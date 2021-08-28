@@ -18,9 +18,9 @@ package packet
 
 import (
 	"bytes"
-	"github.com/chenquan/lighthouse/internal/code"
-	"github.com/chenquan/lighthouse/internal/xerror"
 	"github.com/stretchr/testify/assert"
+	"github.com/yunqi/lighthouse/internal/code"
+	"github.com/yunqi/lighthouse/internal/xerror"
 	"testing"
 )
 

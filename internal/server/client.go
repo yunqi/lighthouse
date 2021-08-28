@@ -18,9 +18,9 @@ package server
 
 import (
 	"fmt"
-	"github.com/chenquan/lighthouse/internal/packet"
-	"github.com/chenquan/lighthouse/internal/session"
-	"github.com/chenquan/lighthouse/internal/xio"
+	"github.com/yunqi/lighthouse/internal/packet"
+	"github.com/yunqi/lighthouse/internal/session"
+	"github.com/yunqi/lighthouse/internal/xio"
 	"io"
 	"net"
 	"sync"

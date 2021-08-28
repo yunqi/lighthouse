@@ -19,7 +19,7 @@ package packet
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/chenquan/lighthouse/internal/xerror"
+	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
 

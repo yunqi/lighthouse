@@ -16,7 +16,7 @@
 
 package store
 
-import "github.com/chenquan/lighthouse/internal/packet"
+import "github.com/yunqi/lighthouse/internal/packet"
 
 type (
 	Message struct {
