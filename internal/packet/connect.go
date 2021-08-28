@@ -19,7 +19,6 @@ package packet
 import (
 	"bytes"
 	"fmt"
-	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
@@ -34,15 +33,15 @@ type (
 		ProtocolLevel byte
 		// The ConnectFlags byte contains a number of parameters specifying the behavior of the MQTT connection.
 		// It also indicates the presence or absence of fields in the payload.
-		ConnectFlags *ConnectFlags
+		ConnectFlags
 		// The KeepAlive is a time interval measured in seconds.
 		// Expressed as a 16-bit word, it is the maximum time interval that is permitted
 		// to elapse between the point at which the Client finishes transmitting one Control Packet
 		// and the point it starts sending the next.
 		KeepAlive uint16
 
-		WillTopic []byte
-		WillMsg   []byte
+		WillTopic   []byte
+		WillMessage []byte
 
 		//auth
 		ClientId []byte
@@ -99,11 +98,11 @@ const (
 )
 
 func (c *Connect) Encode(w io.Writer) (err error) {
-	c.FixedHeader = &FixedHeader{PacketType: CONNECT, Flags: FixedHeaderFlagReserved}
+	//c.FixedHeader = &FixedHeader{PacketType: CONNECT, Flags: FixedHeaderFlagReserved}
 	buf := &bytes.Buffer{}
 	// 协议头
 	buf.Write(ProtocolNamePrefix)
-	buf.Write(c.ProtocolName[:])
+	buf.Write(c.ProtocolName)
 	buf.WriteByte(c.ProtocolLevel)
 	// connect flags
 	var (
@@ -115,24 +114,24 @@ func (c *Connect) Encode(w io.Writer) (err error) {
 		CleanSession byte = 0
 		reserved     byte = 0
 	)
-	if c.ConnectFlags.UsernameFlag {
+	if c.UsernameFlag {
 		usernameFlag = usernameFlagTrue
 	}
-	if c.ConnectFlags.PasswordFlag {
+	if c.PasswordFlag {
 		passwordFlag = passwordFlagTrue
 	}
-	if c.ConnectFlags.WillRetain {
+	if c.WillRetain {
 		willRetain = willRetainTrue
 	}
-	if c.ConnectFlags.WillQoS == 1 {
+	if c.WillQoS == 1 {
 		willQos = willQos1
-	} else if c.ConnectFlags.WillQoS == 2 {
+	} else if c.WillQoS == 2 {
 		willQos = WillQos2
 	}
-	if c.ConnectFlags.WillFlag {
+	if c.WillFlag {
 		willFlag = willFlagTure
 	}
-	if c.ConnectFlags.CleanSession {
+	if c.CleanSession {
 		CleanSession = CleanSessionTure
 	}
 	connectFlags := usernameFlag | passwordFlag | willRetain | willFlag | willQos | CleanSession | reserved
@@ -145,7 +144,7 @@ func (c *Connect) Encode(w io.Writer) (err error) {
 		return err
 	}
 	buf.Write(clientIdBytes)
-	if c.ConnectFlags.WillFlag {
+	if c.WillFlag {
 		// will topic
 		willTopicBytes, _, err := UTF8EncodedStrings(c.WillTopic)
 		if err != nil {
@@ -154,20 +153,20 @@ func (c *Connect) Encode(w io.Writer) (err error) {
 		buf.Write(willTopicBytes)
 
 		// Will Message
-		willMsgBytes, _, err := UTF8EncodedStrings(c.WillMsg)
+		willMsgBytes, _, err := UTF8EncodedStrings(c.WillMessage)
 		if err != nil {
 			return err
 		}
 		buf.Write(willMsgBytes)
 	}
-	if c.ConnectFlags.UsernameFlag {
+	if c.UsernameFlag {
 		usernameBytes, _, err := UTF8EncodedStrings(c.Username)
 		if err != nil {
 			return err
 		}
 		buf.Write(usernameBytes)
 	}
-	if c.ConnectFlags.PasswordFlag {
+	if c.PasswordFlag {
 		passwordBytes, _, err := UTF8EncodedStrings(c.Password)
 		if err != nil {
 			return err
@@ -198,7 +197,7 @@ func (c *Connect) Decode(r io.Reader) (err error) {
 	}
 	c.Version = Version(c.ProtocolLevel)
 	if _, ok := version2protocolName[c.Version]; !ok {
-		return xerror.NewError(code.V3UnacceptableProtocolVersion)
+		return xerror.ErrV3UnacceptableProtocolVersion
 	}
 	connectFlags, err := buf.ReadByte()
 	if err != nil {
@@ -208,60 +207,60 @@ func (c *Connect) Decode(r io.Reader) (err error) {
 	if reserved != 0 { //[MQTT-3.1.2-3]
 		return xerror.ErrMalformed
 	}
-	c.ConnectFlags = &ConnectFlags{}
-	c.ConnectFlags.CleanSession = (1 & (connectFlags >> 1)) > 0
-	c.ConnectFlags.WillFlag = (1 & (connectFlags >> 2)) > 0
-	c.ConnectFlags.WillQoS = 3 & (connectFlags >> 3)
-	if !c.ConnectFlags.WillFlag && c.ConnectFlags.WillQoS != 0 { //[MQTT-3.1.2-11]
+	c.CleanSession = (1 & (connectFlags >> 1)) > 0
+	c.WillFlag = (1 & (connectFlags >> 2)) > 0
+	c.WillQoS = 3 & (connectFlags >> 3)
+	if !c.WillFlag && c.WillQoS != 0 { //[MQTT-3.1.2-11]
 		return xerror.ErrMalformed
 	}
-	c.ConnectFlags.WillRetain = (1 & (connectFlags >> 5)) > 0
-	if !c.ConnectFlags.WillFlag && c.ConnectFlags.WillRetain { //[MQTT-3.1.2-11]
+	c.WillRetain = (1 & (connectFlags >> 5)) > 0
+	if !c.WillFlag && c.WillRetain { //[MQTT-3.1.2-11]
 		return xerror.ErrMalformed
 	}
-	c.ConnectFlags.PasswordFlag = (1 & (connectFlags >> 6)) > 0
-	c.ConnectFlags.UsernameFlag = (1 & (connectFlags >> 7)) > 0
+	c.PasswordFlag = (1 & (connectFlags >> 6)) > 0
+	c.UsernameFlag = (1 & (connectFlags >> 7)) > 0
 	c.KeepAlive, err = readUint16(buf)
 	if err != nil {
 		return err
 	}
-	return c.unpackPayload(buf)
+	return c.decodePayload(buf)
 }
 
 func (c *Connect) String() string {
 	return fmt.Sprintf(
-		"Connect - Version: %s,ProtocolLevel: %v, UsernameFlag: %v, PasswordFlag: %v, ProtocolName: %s, CleanSession: %v, KeepAlive: %v, ClientId: %s, Username: %s, Password: %s, WillFlag: %v, WillRetain: %v, WillQos: %v, WillTopic: %s, WillMsg: %s",
-		c.Version, c.ProtocolLevel, c.ConnectFlags.UsernameFlag, c.ConnectFlags.PasswordFlag, c.ProtocolName, c.ConnectFlags.CleanSession, c.KeepAlive, c.ClientId, c.Username, c.Password, c.ConnectFlags.WillFlag, c.ConnectFlags.WillRetain, c.ConnectFlags.WillQoS, c.WillTopic, c.WillMsg)
+		"Connect - Version: %s,ProtocolLevel: %v, UsernameFlag: %v, PasswordFlag: %v, ProtocolName: %s, CleanSession: %v, KeepAlive: %v, ClientId: %s, Username: %s, Password: %s, WillFlag: %v, WillRetain: %v, WillQos: %v, WillTopic: %s, WillMessage: %s",
+		c.Version, c.ProtocolLevel, c.ConnectFlags.UsernameFlag, c.ConnectFlags.PasswordFlag, c.ProtocolName, c.ConnectFlags.CleanSession, c.KeepAlive, c.ClientId, c.Username, c.Password, c.ConnectFlags.WillFlag, c.ConnectFlags.WillRetain, c.ConnectFlags.WillQoS, c.WillTopic, c.WillMessage)
 }
 
-func (c *Connect) unpackPayload(buf *bytes.Buffer) error {
+func (c *Connect) decodePayload(buf *bytes.Buffer) error {
 	var err error
 	c.ClientId, err = UTF8DecodedStrings(true, buf)
 	if err != nil {
 		return err
 	}
 
-	if IsVersion3(c.Version) && len(c.ClientId) == 0 && !c.ConnectFlags.CleanSession { // v311 [MQTT-3.1.3-7]
-		return xerror.NewError(code.V3IdentifierRejected) // v311 //[MQTT-3.1.3-8]
+	if IsVersion3(c.Version) && len(c.ClientId) == 0 && !c.CleanSession { // v311 [MQTT-3.1.3-7]
+		return xerror.ErrV3IdentifierRejected // v311 //[MQTT-3.1.3-8]
 	}
-	if c.ConnectFlags.WillFlag {
+	if c.WillFlag {
 		c.WillTopic, err = UTF8DecodedStrings(true, buf)
 		if err != nil {
 			return err
 		}
-		c.WillMsg, err = UTF8DecodedStrings(true, buf)
+		c.WillMessage, err = UTF8DecodedStrings(true, buf)
 		if err != nil {
 			return err
 		}
 	}
 
-	if c.ConnectFlags.UsernameFlag {
+	if c.UsernameFlag {
 		c.Username, err = UTF8DecodedStrings(true, buf)
 		if err != nil {
 			return err
 		}
 	}
-	if c.ConnectFlags.PasswordFlag {
+
+	if c.PasswordFlag {
 		c.Password, err = UTF8DecodedStrings(true, buf)
 		if err != nil {
 			return err

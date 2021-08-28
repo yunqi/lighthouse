@@ -22,8 +22,10 @@ import (
 )
 
 var (
-	ErrMalformed = &Error{Code: code.MalformedPacket}
-	ErrProtocol  = &Error{Code: code.ProtocolError}
+	ErrMalformed                     = NewError(code.MalformedPacket)
+	ErrProtocol                      = NewError(code.ProtocolError)
+	ErrV3UnacceptableProtocolVersion = NewError(code.V3UnacceptableProtocolVersion)
+	ErrV3IdentifierRejected          = NewError(code.V3IdentifierRejected)
 )
 
 type (
@@ -54,5 +56,4 @@ func (e *Error) Error() string {
 		return ""
 	}
 	return fmt.Sprintf("operation error: Code = %x, reasonString: %s", e.Code, e.ReasonString)
-
 }
