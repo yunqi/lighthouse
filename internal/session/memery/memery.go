@@ -17,7 +17,7 @@
 package memery
 
 import (
-	"github.com/chenquan/lighthouse/internal/session"
+	"github.com/yunqi/lighthouse/internal/session"
 	"sync"
 )
 

@@ -18,7 +18,7 @@ package xerror
 
 import (
 	"fmt"
-	"github.com/chenquan/lighthouse/internal/code"
+	"github.com/yunqi/lighthouse/internal/code"
 )
 
 var (

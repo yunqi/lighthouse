@@ -1,4 +1,4 @@
-module github.com/chenquan/lighthouse
+module github.com/yunqi/lighthouse
 
 go 1.17
 

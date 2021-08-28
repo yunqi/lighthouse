@@ -17,7 +17,7 @@
 package session
 
 import (
-	"github.com/chenquan/lighthouse/internal/store"
+	"github.com/yunqi/lighthouse/internal/store"
 	"time"
 )
 
