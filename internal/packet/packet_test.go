@@ -28,3 +28,7 @@ func TestUTF8EncodedStrings(t *testing.T) {
 	assert.Equal(t, len(b)+2, size)
 	assert.Equal(t, append([]byte{0x00, 0x03}, b...), data)
 }
+
+func TestNewPacket(t *testing.T) {
+
+}

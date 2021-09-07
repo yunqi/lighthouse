@@ -139,7 +139,7 @@ func (v Version) String() string {
 	if s, ok := version2versionName[v]; ok {
 		return s
 	}
-	return "未知协议版本"
+	return "Unknown version"
 }
 
 func IsVersion3(version Version) bool {
@@ -334,24 +334,7 @@ func NewPacket(fixedHeader *FixedHeader, version Version, r io.Reader) (Packet, 
 	}
 }
 
-// ValidTopicName returns whether the bytes is a valid non-shared topic filter.[MQTT-4.7.1-1].
-func ValidTopicName(mustUTF8 bool, p []byte) bool {
-	for len(p) > 0 {
-		ru, size := utf8.DecodeRune(p)
-		if mustUTF8 && ru == utf8.RuneError {
-			return false
-		}
-		if size == 1 {
-			//主题名不允许使用通配符
-			if p[0] == '+' || p[0] == '#' {
-				return false
-			}
-		}
-		p = p[size:]
-	}
-	return true
-}
-
+// encode 编码
 func encode(fixedHeader *FixedHeader, buf *bytes.Buffer, w io.Writer) (err error) {
 	fixedHeader.RemainLength = buf.Len()
 	err = fixedHeader.Encode(w)
