@@ -18,6 +18,7 @@ package packet
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 )
 
@@ -50,7 +51,7 @@ func (p *Pubrel) Decode(r io.Reader) (err error) {
 }
 
 func (p *Pubrel) String() string {
-	return p.string()
+	return fmt.Sprintf("Pubrel - Version:%s, PacketId:%d", p.Version, p.PacketId)
 }
 
 // CreateNewPubcomp returns the Pubcomp struct related to the Pubrel struct in QoS 2.

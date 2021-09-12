@@ -18,7 +18,6 @@ package packet
 
 import (
 	"bytes"
-	"encoding/json"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
@@ -42,9 +41,4 @@ func (bp *BasePub) decode(r io.Reader) (err error) {
 	}
 	return
 
-}
-
-func (bp *BasePub) string() string {
-	b, _ := json.Marshal(bp)
-	return string(b)
 }
