@@ -29,17 +29,17 @@ type (
 )
 
 // Encode encodes the FixedHeader struct into bytes and writes it into io.Writer.
-func (fh *FixedHeader) Encode(w io.Writer) error {
+func (fixedHeader *FixedHeader) Encode(w io.Writer) error {
 	var err error
 	b := make([]byte, 1)
-	packetType := fh.PacketType << 4
-	b[0] = packetType | fh.Flags
+	packetType := fixedHeader.PacketType << 4
+	b[0] = packetType | fixedHeader.Flags
 	// 1st bit
 	_, err = w.Write(b)
 	if err != nil {
 		return err
 	}
-	lengthBytes, err := EncodeRemainLength(fh.RemainLength)
+	lengthBytes, err := EncodeRemainLength(fixedHeader.RemainLength)
 	if err != nil {
 		return err
 	}

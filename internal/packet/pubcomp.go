@@ -18,6 +18,7 @@ package packet
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 )
 
@@ -39,19 +40,18 @@ func NewPubcomp(fixedHeader *FixedHeader, version Version, r io.Reader) (*Pubcom
 	return p, nil
 }
 
-func (bp *Pubcomp) Encode(w io.Writer) (err error) {
-	bp.FixedHeader = &FixedHeader{PacketType: PUBCOMP, Flags: FixedHeaderFlagReserved}
+func (pb *Pubcomp) Encode(w io.Writer) (err error) {
+	pb.FixedHeader = &FixedHeader{PacketType: PUBCOMP, Flags: FixedHeaderFlagReserved}
 	buf := &bytes.Buffer{}
-	writeUint16(buf, bp.PacketId)
-	return encode(bp.FixedHeader, buf, w)
+	writeUint16(buf, pb.PacketId)
+	return encode(pb.FixedHeader, buf, w)
 }
 
-func (bp *Pubcomp) Decode(r io.Reader) (err error) {
-
-	return bp.decode(r)
-
+func (pb *Pubcomp) Decode(r io.Reader) (err error) {
+	return pb.decode(r)
 }
 
-func (bp *Pubcomp) String() string {
-	return bp.string()
+// String returns string.
+func (pb *Pubcomp) String() string {
+	return fmt.Sprintf("Pubcomp - Version:%s, PacketId:%d", pb.Version, pb.PacketId)
 }

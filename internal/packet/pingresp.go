@@ -45,7 +45,7 @@ func (p *Pingresp) Encode(w io.Writer) (err error) {
 	return p.FixedHeader.Encode(w)
 }
 
-func (p *Pingresp) Decode(r io.Reader) (err error) {
+func (p *Pingresp) Decode(_ io.Reader) (err error) {
 	if p.FixedHeader.RemainLength != 0 {
 		return xerror.ErrMalformed
 	}

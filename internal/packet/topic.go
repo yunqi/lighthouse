@@ -16,7 +16,12 @@
 
 package packet
 
-import "unicode/utf8"
+import (
+	"strings"
+	"unicode/utf8"
+)
+
+const TopicMaxLen = 65535
 
 type (
 	// Topic represents the MQTT Topic
@@ -48,37 +53,67 @@ type (
 )
 
 // ValidTopicFilter  returns whether the bytes is a valid topic filter. [MQTT-4.7.1-2]  [MQTT-4.7.1-3]
-func ValidTopicFilter(mustUTF8 bool, p []byte) bool {
-	if len(p) == 0 {
+func ValidTopicFilter(mustUTF8 bool, topic []byte) bool {
+	size := len(topic)
+	if size == 0 || size > TopicMaxLen {
+		// [MQTT-4.7.3-1],[MQTT-4.7.3-3]
 		return false
 	}
 	var prevByte byte //前一个字节
 	var isSetPrevByte bool
 
-	for len(p) > 0 {
-		ru, size := utf8.DecodeRune(p)
+	for len(topic) > 0 {
+		ru, size := utf8.DecodeRune(topic)
 		if mustUTF8 && ru == utf8.RuneError {
 			return false
 		}
-		plen := len(p)
-		if p[0] == byte('#') && plen != 1 { // #一定是最后一个字符
+		plen := len(topic)
+		if topic[0] == byte('#') && plen != 1 { // #一定是最后一个字符
 			return false
 		}
 		if size == 1 && isSetPrevByte {
 			// + 前（如果有前后字节）,一定是'/' [MQTT-4.7.1-2]  [MQTT-4.7.1-3]
-			if (p[0] == byte('+') || p[0] == byte('#')) && prevByte != byte('/') {
+			if (topic[0] == byte('+') || topic[0] == byte('#')) && prevByte != byte('/') {
 				return false
 			}
 
-			if plen > 1 { // p[0] 不是最后一个字节
-				if p[0] == byte('+') && p[1] != byte('/') { // + 后（如果有字节）,一定是 '/'
+			if plen > 1 { // topic[0] 不是最后一个字节
+				if topic[0] == byte('+') && topic[1] != byte('/') { // + 后（如果有字节）,一定是 '/'
 					return false
 				}
 			}
 		}
-		prevByte = p[0]
+		prevByte = topic[0]
 		isSetPrevByte = true
-		p = p[size:]
+		topic = topic[size:]
 	}
 	return true
+}
+
+// ValidTopicName returns whether the bytes is a valid non-shared topic filter.[MQTT-4.7.1-1].
+func ValidTopicName(mustUTF8 bool, topic []byte) bool {
+	size := len(topic)
+	if size == 0 || size > TopicMaxLen {
+		// [MQTT-4.7.3-1],[MQTT-4.7.3-3]
+		return false
+	}
+	for len(topic) > 0 {
+		ru, size := utf8.DecodeRune(topic)
+		if mustUTF8 && ru == utf8.RuneError {
+			return false
+		}
+		if size == 1 {
+			//主题名不允许使用通配符
+			if topic[0] == '+' || topic[0] == '#' {
+				return false
+			}
+		}
+		topic = topic[size:]
+	}
+	return true
+}
+
+// IsInternalTopic 内部主题
+func IsInternalTopic(topic string) bool {
+	return strings.HasPrefix(topic, "$")
 }

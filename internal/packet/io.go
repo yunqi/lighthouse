@@ -43,22 +43,28 @@ func NewReader(r io.Reader) *Reader {
 	if buf, ok := r.(*bufio.Reader); ok {
 		return &Reader{buf: buf, version: Version311}
 	}
+
 	return &Reader{buf: bufio.NewReaderSize(r, 2048), version: Version311}
 }
 
 // Read reads data from Reader and returns a  Packet instance.
 // If any errors occurs, returns nil, error
 func (r *Reader) Read() (Packet, error) {
+	// PacketType, Flags
 	firstByte, err := r.buf.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 	fh := &FixedHeader{PacketType: firstByte >> 4, Flags: firstByte & 15} //设置FixHeader
+
+	// RemainLength
 	length, err := DecodeRemainLength(r.buf)
 	if err != nil {
 		return nil, err
 	}
 	fh.RemainLength = length
+
+	// packet
 	p, err := NewPacket(fh, r.version, r.buf)
 	if err != nil {
 		return nil, err
@@ -81,25 +87,19 @@ func NewWriter(w io.Writer) *Writer {
 // Call Flush after WritePacket to flush buffered data to the underlying io.Writer.
 func (w *Writer) WritePacket(p Packet) error {
 	err := p.Encode(w.buf)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Write raw bytes to the Writer.
 // Call Flush after Write to flush buffered data to the underlying io.Writer.
 func (w *Writer) Write(b []byte) error {
 	_, err := w.buf.Write(b)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
-// WriteAndFlush writes and flush the packet bytes to the underlying io.Writer.
-func (w *Writer) WriteAndFlush(p Packet) error {
-	err := p.Encode(w.buf)
+// WritePacketAndFlush writes and flush the packet bytes to the underlying io.Writer.
+func (w *Writer) WritePacketAndFlush(p Packet) error {
+	err := w.WritePacket(p)
 	if err != nil {
 		return err
 	}
