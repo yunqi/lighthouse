@@ -19,6 +19,7 @@ package packet
 import (
 	"bytes"
 	"fmt"
+	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
@@ -228,8 +229,8 @@ func (c *Connect) Decode(r io.Reader) (err error) {
 
 func (c *Connect) String() string {
 	return fmt.Sprintf(
-		"Connect - Version: %s,ProtocolLevel: %v, UsernameFlag: %v, PasswordFlag: %v, ProtocolName: %s, CleanSession: %v, KeepAlive: %v, ClientId: %s, Username: %s, Password: %s, WillFlag: %v, WillRetain: %v, WillQos: %v, WillTopic: %s, WillMessage: %s",
-		c.Version, c.ProtocolLevel, c.ConnectFlags.UsernameFlag, c.ConnectFlags.PasswordFlag, c.ProtocolName, c.ConnectFlags.CleanSession, c.KeepAlive, c.ClientId, c.Username, c.Password, c.ConnectFlags.WillFlag, c.ConnectFlags.WillRetain, c.ConnectFlags.WillQoS, c.WillTopic, c.WillMessage)
+		"Connect - Version: %s,ProtocolLevel: %v, UsernameFlag: %v, PasswordFlag: %v, ProtocolName: %s, CleanSession: %v, KeepAlive: %v, ClientId: %s, Username: %s, WillFlag: %v, WillRetain: %v, WillQos: %v, WillTopic: %s, WillMessage: %s",
+		c.Version, c.ProtocolLevel, c.ConnectFlags.UsernameFlag, c.ConnectFlags.PasswordFlag, c.ProtocolName, c.ConnectFlags.CleanSession, c.KeepAlive, c.ClientId, c.Username, c.ConnectFlags.WillFlag, c.ConnectFlags.WillRetain, c.ConnectFlags.WillQoS, c.WillTopic, c.WillMessage)
 }
 
 func (c *Connect) decodePayload(buf *bytes.Buffer) error {
@@ -267,4 +268,13 @@ func (c *Connect) decodePayload(buf *bytes.Buffer) error {
 		}
 	}
 	return nil
+}
+
+// NewConnackPacket returns the Connack struct which is the ack packet of the Connect packet.
+func (c *Connect) NewConnackPacket(cd code.Code, sessionReuse bool) *Connack {
+	ack := &Connack{Code: cd, Version: c.Version}
+	if !c.CleanSession && sessionReuse && cd == code.Success {
+		ack.SessionPresent = true //[MQTT-3.2.2-2]
+	}
+	return ack
 }

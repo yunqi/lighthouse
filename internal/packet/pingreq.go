@@ -54,3 +54,8 @@ func (p *Pingreq) Decode(_ io.Reader) (err error) {
 func (p *Pingreq) String() string {
 	return "PINGREQ"
 }
+
+func (p *Pingreq) CreatePingresp() *Pingresp {
+	fixedHeader := pingrespDefaultFixedHeader
+	return &Pingresp{FixedHeader: fixedHeader}
+}

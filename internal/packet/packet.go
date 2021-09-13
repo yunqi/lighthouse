@@ -311,7 +311,7 @@ func NewPacket(fixedHeader *FixedHeader, version Version, r io.Reader) (Packet, 
 	case PUBREC:
 		return NewPubrec(fixedHeader, version, r)
 	case PUBREL:
-		return NewPubrel(fixedHeader, r)
+		return NewPubrel(fixedHeader, version, r)
 	case PUBCOMP:
 		return NewPubcomp(fixedHeader, version, r)
 	case SUBSCRIBE:
@@ -335,12 +335,12 @@ func NewPacket(fixedHeader *FixedHeader, version Version, r io.Reader) (Packet, 
 }
 
 // encode 编码
-func encode(fixedHeader *FixedHeader, buf *bytes.Buffer, w io.Writer) (err error) {
-	fixedHeader.RemainLength = buf.Len()
+func encode(fixedHeader *FixedHeader, readBuf *bytes.Buffer, w io.Writer) (err error) {
+	fixedHeader.RemainLength = readBuf.Len()
 	err = fixedHeader.Encode(w)
 	if err != nil {
 		return
 	}
-	_, err = buf.WriteTo(w)
+	_, err = readBuf.WriteTo(w)
 	return err
 }

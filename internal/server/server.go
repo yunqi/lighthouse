@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 	"net"
 	"os"
 	"time"
@@ -65,7 +66,7 @@ func NewServer(opts ...Option) *server {
 	return s
 }
 
-func (s *server) serveTCP() {
+func (s *server) ServeTCP() {
 	defer func() {
 		_ = s.tcpListener.Close()
 	}()
@@ -91,8 +92,9 @@ func (s *server) serveTCP() {
 		}
 		// 创建一个客户端连接
 		_ = accept
+		fmt.Println(accept)
 		c := newClient(s, accept)
-		//log.Info("创建一个新的客户端连接")
+		zap.L().Info("创建一个新的客户端连接")
 		// 监听该连接
 		go c.listen()
 	}

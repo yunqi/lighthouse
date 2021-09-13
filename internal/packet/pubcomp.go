@@ -19,20 +19,23 @@ package packet
 import (
 	"bytes"
 	"fmt"
+	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
 
 type (
 	Pubcomp struct {
-		BasePub
+		Version     Version
+		FixedHeader *FixedHeader
+		PacketId    PacketId
 	}
 )
 
 // NewPubcomp returns a Pubcomp instance by the given FixHeader and io.Reader
 func NewPubcomp(fixedHeader *FixedHeader, version Version, r io.Reader) (*Pubcomp, error) {
-	p := &Pubcomp{BasePub{
+	p := &Pubcomp{
 		FixedHeader: fixedHeader, Version: version,
-	}}
+	}
 	err := p.Decode(r)
 	if err != nil {
 		return nil, err
@@ -48,7 +51,17 @@ func (pb *Pubcomp) Encode(w io.Writer) (err error) {
 }
 
 func (pb *Pubcomp) Decode(r io.Reader) (err error) {
-	return pb.decode(r)
+	b := make([]byte, pb.FixedHeader.RemainLength)
+	_, err = io.ReadFull(r, b)
+	if err != nil {
+		return xerror.ErrMalformed
+	}
+	buf := bytes.NewBuffer(b)
+	pb.PacketId, err = readUint16(buf)
+	if err != nil {
+		return
+	}
+	return
 }
 
 // String returns string.

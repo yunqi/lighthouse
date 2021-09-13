@@ -17,12 +17,16 @@
 package server
 
 import (
-	"fmt"
+	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/session"
+	"github.com/yunqi/lighthouse/internal/store"
+	"github.com/yunqi/lighthouse/internal/xerror"
 	"github.com/yunqi/lighthouse/internal/xio"
+	"go.uber.org/zap"
 	"io"
 	"net"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -110,6 +114,8 @@ type (
 		version       packet.Version
 		opt           *ClientOption //set up before OnConnect()
 		disconnect    *packet.Disconnect
+		closed        chan struct{}
+		connected     chan struct{}
 	}
 )
 
@@ -134,9 +140,13 @@ func (c *client) Connection() net.Conn {
 }
 
 func (c *client) Close() error {
+	defer func() {
+		zap.L().Debug("关闭客户端")
+	}()
 	if c.clientConn != nil {
 		return c.clientConn.Close()
 	}
+
 	return nil
 }
 func (c *client) Status() Status {
@@ -165,18 +175,52 @@ func newClient(server *server, conn net.Conn) *client {
 		connectedAt:  time.Now().UnixMilli(),
 		in:           make(chan packet.Packet, 8),
 		out:          make(chan packet.Packet, 8),
+		closed:       make(chan struct{}),
+		connected:    make(chan struct{}),
 	}
 	return c
 }
+
 func (c *client) listen() {
-	fmt.Println("监听该连接")
+	zap.L().Info("监听该连接")
 	waitGroup := sync.WaitGroup{}
-	//read conn
 	waitGroup.Add(1)
-	c.readConn()
+	go func() {
+		//read conn
+		defer waitGroup.Done()
+		c.readConn()
+
+	}()
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+		c.writeConn()
+	}()
+	if ok := c.connection(); ok {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			c.handleConn()
+		}()
+	}
+	waitGroup.Wait()
+
 }
 
 func (c *client) readConn() {
+	defer func() {
+		// 关闭 in 通道
+		_ = c.Close()
+		close(c.in)
+	}()
+	go func() {
+		select {
+		case <-c.closed:
+			// 立即关闭
+			_ = c.clientConn.SetReadDeadline(time.Now())
+			return
+		}
+	}()
 	for {
 		var p packet.Packet
 		if c.IsConnected() {
@@ -184,16 +228,148 @@ func (c *client) readConn() {
 				_ = c.clientConn.SetReadDeadline(time.Now().Add(time.Duration(keepAlive/2+keepAlive) * time.Second))
 			}
 		}
+		//zap.L().Debug("接收数据中....")
 		p, err := c.packetReader.Read()
 		if err != nil {
 			if err != io.EOF && p != nil {
-				//zaplog.Error("read error", zap.String("packet_type", reflect.TypeOf(packet).String()))
+				zap.L().Error("read error", zap.String("packet_type", reflect.TypeOf(p).String()))
+			}
+			select {
+			case <-c.closed:
+				zap.L().Debug("客户端退出，关闭连接")
+			default:
+				zap.L().Debug("连接超时，自动关闭")
 			}
 			return
 		}
-		fmt.Println("收到数据")
-		fmt.Println(p.String())
+
+		zap.L().Info("收到数据", zap.Any("packet", p))
 		c.in <- p
+		//zap.L().Info("发送至通道")
+		// 等待连接认证完成
+		c.waitConnection()
 
 	}
+}
+
+func (c *client) writeConn() {
+
+	defer func() {
+	}()
+	for p := range c.out {
+		zap.L().Debug("写入数据", zap.Any("packet", p))
+		err := c.packetWriter.WritePacketAndFlush(p)
+		if err != nil {
+			return
+		}
+	}
+	zap.L().Debug("写入操作退出")
+
+}
+func (c *client) write(packet packet.Packet) {
+	c.out <- packet
+}
+func (c *client) waitConnection() {
+	<-c.connected
+}
+
+func (c *client) connectionDone() {
+	close(c.connected)
+}
+
+func (c *client) connection() (ok bool) {
+	defer func() {
+		c.connectionDone()
+	}()
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	for {
+		select {
+		case p := <-c.in:
+			//zap.L().Debug("从in通道中读出数据", zap.Any("packet", p))
+			if p == nil {
+				return
+			}
+
+			switch conn := p.(type) {
+			case *packet.Connect:
+				if conn == nil {
+					//err := xerror.ErrProtocol
+					break
+				}
+				return c.connectAuthentication(conn)
+			default:
+			}
+		case <-timeout.C:
+			return
+		}
+
+	}
+
+}
+
+// TODO 验证客户端连接
+// connectAuthentication 连接验证
+func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
+	zap.L().Info("认证成功")
+	// 根据报文进行认证
+	var connack *packet.Connack
+	connack = conn.NewConnackPacket(code.Success, true)
+
+	c.write(connack)
+	return true
+}
+
+func (c *client) handleConn() {
+	defer func() {
+		close(c.closed)
+		close(c.out)
+	}()
+	var err *xerror.Error
+	// in 通道关闭时，自动退出
+	for p := range c.in {
+		switch packetData := p.(type) {
+		case *packet.Publish:
+			err = c.handlePublish(packetData)
+		case *packet.Pingreq:
+			c.handlePingreq(packetData)
+		case *packet.Pubrel:
+			c.handlePubrel(packetData)
+
+		case *packet.Disconnect:
+			break
+		}
+		if err != nil {
+			break
+		}
+	}
+}
+func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
+
+	message := store.MessageFromPublish(publish)
+	var ackPacket packet.Packet
+	zap.L().Debug("message", zap.Any("message", message))
+	switch publish.QoS {
+	case packet.QoS1:
+		ackPacket = publish.CreatePuback()
+	case packet.QoS2:
+		ackPacket = publish.CreatePubrec()
+	}
+
+	if ackPacket != nil {
+		// 返回响应
+		zap.L().Debug("返回响应", zap.Any("packet", ackPacket))
+		c.write(ackPacket)
+	}
+	return nil
+}
+
+func (c *client) handlePingreq(pingreq *packet.Pingreq) {
+	pingresp := pingreq.CreatePingresp()
+	c.write(pingresp)
+}
+
+func (c *client) handlePubrel(pubrel *packet.Pubrel) {
+	pubcomp := pubrel.CreatePubcomp()
+	c.write(pubcomp)
 }

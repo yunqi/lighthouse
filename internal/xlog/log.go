@@ -16,30 +16,30 @@
 
 package xlog
 
+import (
+	"go.uber.org/zap"
+	"sync"
+)
+
 const (
 	PRO Mode = iota
 	TEST
 	DEV
 )
 
-//
-//var zaplog *zap.Logger
-//var once sync.Once
-//var defaultLog, _ = zap.NewDevelopment()
-//
+var once sync.Once
+
 type Mode int32
 
-//
-//var mode Mode
-//
-//func Logger() *zap.Logger {
-//	if zaplog == nil {
-//		log.Panicln("log未被初始化")
-//	}
-//	return zaplog
-//}
-//func Pro() {
-//	once.Do(func() {
-//		zaplog, _ = zap.NewProduction()
-//	})
-//}
+func Pro() {
+	once.Do(func() {
+		log, _ := zap.NewProduction()
+		zap.ReplaceGlobals(log)
+	})
+}
+func Dev() {
+	once.Do(func() {
+		log, _ := zap.NewDevelopment()
+		zap.ReplaceGlobals(log)
+	})
+}

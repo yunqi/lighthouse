@@ -50,7 +50,7 @@ func TestReader_Read(t *testing.T) {
 		newReader := NewReader(reader)
 		packet, err := newReader.Read()
 		assert.NoError(t, err)
-		assert.Equal(t, "Connect - Version: MQTT3.1.1,ProtocolLevel: 4, UsernameFlag: false, PasswordFlag: false, ProtocolName: MQTT, CleanSession: false, KeepAlive: 2, ClientId: t, Username: , Password: , WillFlag: false, WillRetain: false, WillQos: 0, WillTopic: , WillMessage: ", packet.String())
+		assert.Equal(t, "Connect - Version: MQTT3.1.1,ProtocolLevel: 4, UsernameFlag: false, PasswordFlag: false, ProtocolName: MQTT, CleanSession: false, KeepAlive: 2, ClientId: t, Username: , WillFlag: false, WillRetain: false, WillQos: 0, WillTopic: , WillMessage: ", packet.String())
 		buffer := &bytes.Buffer{}
 		assert.NoError(t, packet.Encode(buffer))
 		assert.EqualValues(t, packetBytes, buffer.Bytes())

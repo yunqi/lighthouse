@@ -19,20 +19,27 @@ package packet
 import (
 	"bytes"
 	"fmt"
+	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
+)
+
+var (
+	pubrecDefaultFixedHeader = &FixedHeader{PacketType: PUBREC, Flags: FixedHeaderFlagReserved}
 )
 
 type (
 	Pubrec struct {
-		BasePub
+		Version     Version
+		FixedHeader *FixedHeader
+		PacketId    PacketId
 	}
 )
 
 func NewPubrec(fixedHeader *FixedHeader, version Version, r io.Reader) (*Pubrec, error) {
-	p := &Pubrec{BasePub{
+	p := &Pubrec{
 		FixedHeader: fixedHeader,
 		Version:     version,
-	}}
+	}
 	err := p.Decode(r)
 	if err != nil {
 		return nil, err
@@ -41,14 +48,25 @@ func NewPubrec(fixedHeader *FixedHeader, version Version, r io.Reader) (*Pubrec,
 }
 
 func (p *Pubrec) Encode(w io.Writer) (err error) {
-	p.FixedHeader = &FixedHeader{PacketType: PUBREC, Flags: FixedHeaderFlagReserved}
+	p.FixedHeader = pubrecDefaultFixedHeader
 	buf := &bytes.Buffer{}
 	writeUint16(buf, p.PacketId)
 	return encode(p.FixedHeader, buf, w)
 }
 
 func (p *Pubrec) Decode(r io.Reader) (err error) {
-	return p.decode(r)
+	b := make([]byte, p.FixedHeader.RemainLength)
+	_, err = io.ReadFull(r, b)
+	if err != nil {
+		return xerror.ErrMalformed
+	}
+	buf := bytes.NewBuffer(b)
+	p.PacketId, err = readUint16(buf)
+	if err != nil {
+		return
+	}
+	return
+
 }
 
 func (p *Pubrec) String() string {
@@ -58,11 +76,8 @@ func (p *Pubrec) String() string {
 // CreateNewPubrel returns the Pubrel struct related to the Pubrec struct in QoS 2.
 func (p *Pubrec) CreateNewPubrel() *Pubrel {
 	pub := &Pubrel{
-		BasePub{
-			Version:     p.Version,
-			FixedHeader: &FixedHeader{PacketType: PUBREL, Flags: FixedHeaderFlagPubrel},
-			PacketId:    p.PacketId,
-		},
+		FixedHeader: &FixedHeader{PacketType: PUBREL, Flags: FixedHeaderFlagPubrel, RemainLength: 2},
+		PacketId:    p.PacketId,
 	}
 	return pub
 }

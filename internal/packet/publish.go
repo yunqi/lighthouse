@@ -18,7 +18,7 @@ package packet
 
 import (
 	"bytes"
-	"encoding/json"
+	"fmt"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
@@ -112,6 +112,24 @@ func (p *Publish) Decode(r io.Reader) (err error) {
 }
 
 func (p *Publish) String() string {
-	b, _ := json.Marshal(p)
-	return string(b)
+	return fmt.Sprintf("Publish, Version: %v, PacketId: %v, Dup: %v, Qos: %v, Retain: %v, TopicName: %s, Payload: %s",
+		p.Version, p.PacketId, p.Dup, p.QoS, p.Retain, p.TopicName, p.Payload)
+}
+
+// CreatePuback returns the puback struct related to the publish struct in QoS 1
+func (p *Publish) CreatePuback() *Puback {
+	pub := &Puback{
+		Version:  p.Version,
+		PacketId: p.PacketId,
+	}
+	return pub
+}
+
+// CreatePubrec returns the pubrec struct related to the publish struct in QoS 2
+func (p *Publish) CreatePubrec() *Pubrec {
+	pub := &Pubrec{
+		Version:  p.Version,
+		PacketId: p.PacketId,
+	}
+	return pub
 }

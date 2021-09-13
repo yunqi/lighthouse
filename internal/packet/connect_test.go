@@ -355,7 +355,7 @@ func TestConnect_String(t *testing.T) {
 				Username:    []byte("t"),
 				Password:    []byte("t"),
 			},
-			"Connect - Version: MQTT3.1.1,ProtocolLevel: 4, UsernameFlag: true, PasswordFlag: true, ProtocolName: MQTT, CleanSession: true, KeepAlive: 0, ClientId: t, Username: t, Password: t, WillFlag: true, WillRetain: true, WillQos: 0, WillTopic: t, WillMessage: t",
+			"Connect - Version: MQTT3.1.1,ProtocolLevel: 4, UsernameFlag: true, PasswordFlag: true, ProtocolName: MQTT, CleanSession: true, KeepAlive: 0, ClientId: t, Username: t, WillFlag: true, WillRetain: true, WillQos: 0, WillTopic: t, WillMessage: t",
 		},
 	}
 	for _, tt := range tests {

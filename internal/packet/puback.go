@@ -19,21 +19,28 @@ package packet
 import (
 	"bytes"
 	"fmt"
+	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
+)
+
+var (
+	pubackDefaultFixedHeader = &FixedHeader{PacketType: PUBACK, Flags: FixedHeaderFlagReserved}
 )
 
 type (
 	Puback struct {
-		BasePub
+		Version     Version
+		FixedHeader *FixedHeader
+		PacketId    PacketId
 	}
 )
 
 // NewPuback returns a Puback instance by the given FixHeader and io.Reader
 func NewPuback(fixedHeader *FixedHeader, version Version, r io.Reader) (*Puback, error) {
-	p := &Puback{BasePub{
+	p := &Puback{
 		FixedHeader: fixedHeader,
 		Version:     version,
-	}}
+	}
 	err := p.Decode(r)
 	if err != nil {
 		return nil, err
@@ -42,15 +49,24 @@ func NewPuback(fixedHeader *FixedHeader, version Version, r io.Reader) (*Puback,
 }
 
 func (bp *Puback) Encode(w io.Writer) (err error) {
-	bp.FixedHeader = &FixedHeader{PacketType: PUBACK, Flags: FixedHeaderFlagReserved}
+	bp.FixedHeader = pubackDefaultFixedHeader
 	buf := &bytes.Buffer{}
 	writeUint16(buf, bp.PacketId)
 	return encode(bp.FixedHeader, buf, w)
 }
 
 func (bp *Puback) Decode(r io.Reader) (err error) {
-	return bp.decode(r)
-
+	b := make([]byte, bp.FixedHeader.RemainLength)
+	_, err = io.ReadFull(r, b)
+	if err != nil {
+		return xerror.ErrMalformed
+	}
+	buf := bytes.NewBuffer(b)
+	bp.PacketId, err = readUint16(buf)
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (bp *Puback) String() string {
