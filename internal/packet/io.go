@@ -49,30 +49,29 @@ func NewReader(r io.Reader) *Reader {
 
 // Read reads data from Reader and returns a  Packet instance.
 // If any errors occurs, returns nil, error
-func (r *Reader) Read() (Packet, error) {
+func (r *Reader) Read() (p Packet, err error) {
 	// PacketType, Flags
 	firstByte, err := r.buf.ReadByte()
 	if err != nil {
-		return nil, err
+		return
 	}
 	fh := &FixedHeader{PacketType: firstByte >> 4, Flags: firstByte & 15} //设置FixHeader
 
 	// RemainLength
-	length, err := DecodeRemainLength(r.buf)
+	fh.RemainLength, err = DecodeRemainLength(r.buf)
 	if err != nil {
-		return nil, err
+		return
 	}
-	fh.RemainLength = length
 
 	// packet
-	p, err := NewPacket(fh, r.version, r.buf)
+	p, err = NewPacket(fh, r.version, r.buf)
 	if err != nil {
-		return nil, err
+		return
 	}
 	if p, ok := p.(*Connect); ok {
 		r.version = p.Version
 	}
-	return p, err
+	return
 }
 
 // NewWriter returns a new Writer.
