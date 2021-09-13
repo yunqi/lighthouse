@@ -21,6 +21,8 @@ import (
 	"io"
 )
 
+var pingrespDefaultFixedHeader = &FixedHeader{PacketType: PINGRESP}
+
 type (
 	Pingresp struct {
 		FixedHeader *FixedHeader
@@ -41,7 +43,7 @@ func NewPingresp(fixedHeader *FixedHeader, r io.Reader) (*Pingresp, error) {
 }
 
 func (p *Pingresp) Encode(w io.Writer) (err error) {
-	p.FixedHeader = &FixedHeader{PacketType: PINGRESP}
+	p.FixedHeader = pingrespDefaultFixedHeader
 	return p.FixedHeader.Encode(w)
 }
 

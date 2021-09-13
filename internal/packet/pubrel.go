@@ -19,20 +19,24 @@ package packet
 import (
 	"bytes"
 	"fmt"
+	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
 
 type (
 	Pubrel struct {
-		BasePub
+		Version     Version
+		FixedHeader *FixedHeader
+		PacketId    PacketId
 	}
 )
 
 // NewPubrel returns a Pubrel instance by the given FixHeader and io.Reader.
-func NewPubrel(fixedHeader *FixedHeader, r io.Reader) (*Pubrel, error) {
-	p := &Pubrel{BasePub{
+func NewPubrel(fixedHeader *FixedHeader, version Version, r io.Reader) (*Pubrel, error) {
+	p := &Pubrel{
 		FixedHeader: fixedHeader,
-	}}
+		Version:     version,
+	}
 	err := p.Decode(r)
 	if err != nil {
 		return nil, err
@@ -47,19 +51,26 @@ func (p *Pubrel) Encode(w io.Writer) (err error) {
 }
 
 func (p *Pubrel) Decode(r io.Reader) (err error) {
-	return p.decode(r)
+	b := make([]byte, p.FixedHeader.RemainLength)
+	_, err = io.ReadFull(r, b)
+	if err != nil {
+		return xerror.ErrMalformed
+	}
+	buf := bytes.NewBuffer(b)
+	p.PacketId, err = readUint16(buf)
+	return
 }
 
 func (p *Pubrel) String() string {
 	return fmt.Sprintf("Pubrel - Version:%s, PacketId:%d", p.Version, p.PacketId)
 }
 
-// CreateNewPubcomp returns the Pubcomp struct related to the Pubrel struct in QoS 2.
-func (p *Pubrel) CreateNewPubcomp() *Pubcomp {
-	pub := &Pubcomp{BasePub{
+// CreatePubcomp returns the Pubcomp struct related to the Pubrel struct in QoS 2.
+func (p *Pubrel) CreatePubcomp() *Pubcomp {
+	pub := &Pubcomp{
 		Version:     p.Version,
 		FixedHeader: &FixedHeader{PacketType: PUBCOMP, Flags: FixedHeaderFlagReserved, RemainLength: 2},
 		PacketId:    p.PacketId,
-	}}
+	}
 	return pub
 }

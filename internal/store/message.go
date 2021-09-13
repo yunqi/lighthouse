@@ -16,7 +16,10 @@
 
 package store
 
-import "github.com/yunqi/lighthouse/internal/packet"
+import (
+	"fmt"
+	"github.com/yunqi/lighthouse/internal/packet"
+)
 
 type (
 	Message struct {
@@ -29,3 +32,19 @@ type (
 		MessageExpiry uint32
 	}
 )
+
+func (m *Message) String() string {
+	return fmt.Sprintf("Message - Dup:%v, QoS:%d, Retained:%v, Topic:%s, Payload:%s,PacketId:%d, MessageExpiry:%d",
+		m.Dup, m.QoS, m.Retained, m.Topic, m.Payload, m.PacketId, m.MessageExpiry,
+	)
+}
+
+func MessageFromPublish(publish *packet.Publish) *Message {
+	return &Message{
+		Dup:      publish.Dup,
+		QoS:      publish.QoS,
+		Retained: publish.Retain,
+		Topic:    string(publish.TopicName),
+		Payload:  publish.Payload,
+	}
+}
