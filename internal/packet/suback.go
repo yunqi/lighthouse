@@ -18,11 +18,13 @@ package packet
 
 import (
 	"bytes"
-	"encoding/json"
+	"fmt"
 	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
+
+var subackDefaultFixedHeader = &FixedHeader{PacketType: SUBACK, Flags: FixedHeaderFlagReserved}
 
 type (
 	Suback struct {
@@ -44,7 +46,7 @@ func NewSuback(fixedHeader *FixedHeader, version Version, r io.Reader) (*Suback,
 	return p, err
 }
 func (s *Suback) Encode(w io.Writer) (err error) {
-	s.FixedHeader = &FixedHeader{PacketType: SUBACK, Flags: FixedHeaderFlagReserved}
+	s.FixedHeader = subackDefaultFixedHeader
 	bufw := &bytes.Buffer{}
 	writeUint16(bufw, s.PacketId)
 
@@ -76,6 +78,5 @@ func (s *Suback) Decode(r io.Reader) (err error) {
 }
 
 func (s *Suback) String() string {
-	b, _ := json.Marshal(s)
-	return string(b)
+	return fmt.Sprintf("Suback - Versoin: %s, PacketId:%d", s.Version, s.PacketId)
 }

@@ -18,7 +18,7 @@ package packet
 
 import (
 	"bytes"
-	"encoding/json"
+	"fmt"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
 )
@@ -97,6 +97,5 @@ func (s *Subscribe) Decode(r io.Reader) (err error) {
 }
 
 func (s *Subscribe) String() string {
-	b, _ := json.Marshal(s)
-	return string(b)
+	return fmt.Sprintf("Subscribe - Versioin:%s,PacketId:%d, Topics:%v", s.Version, s.PacketId, s.Topics)
 }
