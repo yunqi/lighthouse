@@ -335,6 +335,10 @@ func (c *client) handleConn() {
 			c.handlePingreq(packetData)
 		case *packet.Pubrel:
 			c.handlePubrel(packetData)
+		case *packet.Subscribe:
+			c.handleSubscribe(packetData)
+
+		case *packet.Unsubscribe:
 
 		case *packet.Disconnect:
 			break
@@ -372,4 +376,14 @@ func (c *client) handlePingreq(pingreq *packet.Pingreq) {
 func (c *client) handlePubrel(pubrel *packet.Pubrel) {
 	pubcomp := pubrel.CreatePubcomp()
 	c.write(pubcomp)
+}
+
+func (c *client) handleSubscribe(subscribe *packet.Subscribe) {
+	suback := &packet.Suback{
+		Version:  subscribe.Version,
+		PacketId: subscribe.PacketId,
+		Payload:  make([]code.Code, len(subscribe.Topics)),
+	}
+
+	c.write(suback)
 }

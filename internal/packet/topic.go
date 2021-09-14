@@ -17,6 +17,7 @@
 package packet
 
 import (
+	"fmt"
 	"strings"
 	"unicode/utf8"
 )
@@ -51,6 +52,10 @@ type (
 		RetainAsPublished bool
 	}
 )
+
+func (t *Topic) String() string {
+	return fmt.Sprintf("Topic - Name:%s, QoS:%d", t.Name, t.QoS)
+}
 
 // ValidTopicFilter  returns whether the bytes is a valid topic filter. [MQTT-4.7.1-2]  [MQTT-4.7.1-3]
 func ValidTopicFilter(mustUTF8 bool, topic []byte) bool {
