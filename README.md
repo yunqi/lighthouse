@@ -2,6 +2,7 @@
 
 A high performance MQTT broker
 
+[![Go](https://github.com/yunqi/lighthouse/actions/workflows/go.yml/badge.svg)](https://github.com/yunqi/lighthouse/actions/workflows/go.yml)
 [![Godoc](https://img.shields.io/badge/godoc-reference-brightgreen)](https://pkg.go.dev/github.com/yunqi/lighthouse)
 [![Go Report Card](https://goreportcard.com/badge/github.com/yunqi/lighthouse)](https://goreportcard.com/report/github.com/yunqi/lighthouse)
 [![codecov](https://codecov.io/gh/yunqi/lighthouse/branch/master/graph/badge.svg?token=PGEOJVIkZB)](https://codecov.io/gh/yunqi/lighthouse)
