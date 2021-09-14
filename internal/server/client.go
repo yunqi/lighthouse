@@ -19,8 +19,8 @@ package server
 import (
 	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/packet"
+	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"github.com/yunqi/lighthouse/internal/session"
-	"github.com/yunqi/lighthouse/internal/store"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"github.com/yunqi/lighthouse/internal/xio"
 	"go.uber.org/zap"
@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	Connecting = iota
+	Connecting Status = iota
 	Connected
 )
 
@@ -57,6 +57,7 @@ type (
 		Close() error
 		// Disconnect sends a disconnect packet to client, it is use to close v5 client.
 		Disconnect(disconnect *packet.Disconnect)
+		Deliverer
 	}
 
 	// ClientOption is the options which controls how the server interacts with the client.
@@ -118,6 +119,14 @@ type (
 		connected     chan struct{}
 	}
 )
+
+func (c *client) ClientOption() *ClientOption {
+	panic("implement me")
+}
+
+func (c *client) Deliver(message message.Message) error {
+	panic("implement me")
+}
 
 func (c *client) ClientOptions() *ClientOption {
 	return c.opt
@@ -346,7 +355,7 @@ func (c *client) handleConn() {
 }
 func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 
-	message := store.MessageFromPublish(publish)
+	message := message.FromPublish(publish)
 	var ackPacket packet.Packet
 	zap.L().Debug("message", zap.Any("message", message))
 	switch publish.QoS {
@@ -361,6 +370,8 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 		zap.L().Debug("返回响应", zap.Any("packet", ackPacket))
 		c.write(ackPacket)
 	}
+	c.write(publish)
+
 	return nil
 }
 

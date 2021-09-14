@@ -17,7 +17,7 @@
 package session
 
 import (
-	"github.com/yunqi/lighthouse/internal/store"
+	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"time"
 )
 
@@ -26,7 +26,7 @@ type (
 		// ClientId represents the client id.
 		ClientId string
 		// Will is the will message of the client, can be nil if there is no will message.
-		Will *store.Message
+		Will *message.Message
 		// WillDelayInterval represents the Will Delay Interval in seconds
 		WillDelayInterval uint32
 		// ConnectedAt is the session create time.
