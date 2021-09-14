@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package store
+package message
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ func (m *Message) String() string {
 	)
 }
 
-func MessageFromPublish(publish *packet.Publish) *Message {
+func FromPublish(publish *packet.Publish) *Message {
 	return &Message{
 		Dup:      publish.Dup,
 		QoS:      publish.QoS,
