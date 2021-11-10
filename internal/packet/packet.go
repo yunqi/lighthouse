@@ -112,6 +112,13 @@ var version2versionName = map[Version]string{
 	Version5:   "MQTT5",     // 'M', 'Q', 'T', 'T'
 }
 
+type PayloadFormat = byte
+
+const (
+	PayloadFormatBytes  PayloadFormat = 0
+	PayloadFormatString PayloadFormat = 1
+)
+
 type (
 	// Version MQTT版本
 	Version byte

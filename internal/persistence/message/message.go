@@ -23,13 +23,19 @@ import (
 
 type (
 	Message struct {
-		Dup           bool
-		QoS           uint8
-		Retained      bool
-		Topic         string
-		Payload       []byte
-		PacketId      packet.PacketId
-		MessageExpiry uint32
+		Dup      bool
+		QoS      uint8
+		Retained bool
+		Topic    string
+		Payload  []byte
+		PacketId packet.PacketId
+
+		ContentType            string
+		CorrelationData        []byte
+		MessageExpiry          uint32
+		PayloadFormat          packet.PayloadFormat
+		ResponseTopic          string
+		SubscriptionIdentifier []uint32
 	}
 )
 
@@ -47,4 +53,59 @@ func FromPublish(publish *packet.Publish) *Message {
 		Topic:    string(publish.TopicName),
 		Payload:  publish.Payload,
 	}
+}
+
+// TotalBytes return the publish packets total bytes.
+func (m *Message) TotalBytes(version packet.Version) uint32 {
+	remainLenght := len(m.Payload) + 2 + len(m.Topic)
+	if m.QoS > packet.QoS0 {
+		remainLenght += 2
+	}
+	if version == packet.Version5 {
+		propertyLenght := 0
+		if m.PayloadFormat == packet.PayloadFormatString {
+			propertyLenght += 2
+		}
+		if l := len(m.ContentType); l != 0 {
+			propertyLenght += 3 + l
+		}
+		if l := len(m.CorrelationData); l != 0 {
+			propertyLenght += 3 + l
+		}
+
+		for _, v := range m.SubscriptionIdentifier {
+			propertyLenght++
+			propertyLenght += getVariableLength(int(v))
+		}
+
+		if m.MessageExpiry != 0 {
+			propertyLenght += 5
+		}
+		if l := len(m.ResponseTopic); l != 0 {
+			propertyLenght += 3 + l
+		}
+
+		remainLenght += propertyLenght + getVariableLength(propertyLenght)
+	}
+	if remainLenght <= packet.RemainLength1ByteMax {
+		return 2 + uint32(remainLenght)
+	} else if remainLenght <= packet.RemainLength2ByteMax {
+		return 3 + uint32(remainLenght)
+	} else if remainLenght <= packet.RemainLength3ByteMax {
+		return 4 + uint32(remainLenght)
+	}
+	return 5 + uint32(remainLenght)
+}
+func getVariableLength(l int) int {
+	if l <= packet.RemainLength1ByteMax {
+		return 1
+	} else if l <= packet.RemainLength2ByteMax {
+
+		return 2
+	} else if l <= packet.RemainLength3ByteMax {
+		return 3
+	} else if l <= packet.RemainLength4ByteMax {
+		return 4
+	}
+	return 0
 }
