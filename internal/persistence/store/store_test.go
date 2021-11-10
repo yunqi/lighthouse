@@ -1,3 +1,19 @@
+/*
+ *    Copyright 2021 chenquan
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package store
 
 import (
@@ -84,26 +100,79 @@ func TestMemory_Replace(t *testing.T) {
 	memory := NewMemory()
 	now := time.Now()
 	controller := gomock.NewController(t)
-	message := queue.NewMockMessage(controller)
-	message.EXPECT().Id().AnyTimes().Return(packet.PacketId(1))
+	message2 := queue.NewMockMessage(controller)
+	message2.EXPECT().Id().AnyTimes().Return(packet.PacketId(1))
 	e1 := &queue.Element{
 		At:      now,
 		Expiry:  now,
-		Message: message,
+		Message: message2,
 	}
 	memory.Add(e1)
 
-	time1 := time.UnixMilli(1)
+	time2 := time.UnixMilli(1)
 	e2 := &queue.Element{
-		At:      time1,
-		Expiry:  time1,
-		Message: message,
+		At:      time2,
+		Expiry:  time2,
+		Message: message2,
 	}
 	memory.Add(e2)
-
 	replaced, err := memory.Replace(e2)
 	assert.True(t, replaced)
 	assert.NoError(t, err)
-	assert.Equal(t, time1, memory.l.Front().Value.(*queue.Element).At)
+	assert.Equal(t, time2, memory.l.Front().Value.(*queue.Element).At)
+
+	message3 := queue.NewMockMessage(controller)
+	message3.EXPECT().Id().AnyTimes().Return(packet.PacketId(2))
+	time3 := time.UnixMilli(1)
+	e3 := &queue.Element{
+		At:      time3,
+		Expiry:  time3,
+		Message: message3,
+	}
+	replaced, err = memory.Replace(e3)
+	assert.False(t, replaced)
+	assert.NoError(t, err)
+
+}
+
+func TestMemory_Iterator(t *testing.T) {
+	memory := NewMemory()
+	n := int64(5)
+	elems := make([]*queue.Element, 5)
+	for i := int64(0); i < n; i++ {
+		e1 := &queue.Element{
+			At:     time.UnixMilli(i),
+			Expiry: time.UnixMilli(i),
+		}
+		elems[i] = e1
+		memory.Add(e1)
+	}
+	i := n - 1
+	for itr := memory.Iterator(); itr.HasNext(); {
+		elem, _ := itr.Next()
+		_ = itr.Remove()
+		assert.Equal(t, elems[i].At, elem.At)
+		i--
+	}
+	assert.EqualValues(t, -1, i)
+	assert.EqualValues(t, 0, memory.l.Len())
+
+}
+func TestMemory_Reset(t *testing.T) {
+	memory := NewMemory()
+	n := int64(5)
+	elems := make([]*queue.Element, 5)
+	for i := int64(0); i < n; i++ {
+		e1 := &queue.Element{
+			At:     time.UnixMilli(i),
+			Expiry: time.UnixMilli(i),
+		}
+		elems[i] = e1
+		memory.Add(e1)
+	}
+	assert.EqualValues(t, n, memory.l.Len())
+
+	memory.Reset()
+	assert.EqualValues(t, 0, memory.l.Len())
 
 }
