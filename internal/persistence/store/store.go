@@ -1,9 +1,27 @@
+/*
+ *    Copyright 2021 chenquan
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package store
 
 import (
 	"container/list"
 	"github.com/yunqi/lighthouse/internal/persistence/queue"
 )
+
+//go:generate mockgen -destination ./store_mock.go -package store -source store.go
 
 type Store interface {
 	Add(elem *queue.Element)
@@ -63,8 +81,8 @@ func (m *Memory) Replace(elem *queue.Element) (replaced bool, err error) {
 
 func (m *Memory) Iterator() Iterator {
 	return &iterator{
-		l:       m.l,
-		current: m.l.Front(),
+		l:    m.l,
+		next: m.l.Front(),
 	}
 }
 
@@ -75,18 +93,20 @@ func (m *Memory) Reset() {
 var _ Iterator = (*iterator)(nil)
 
 type iterator struct {
-	l       *list.List
+	l *list.List
+	//prev    *list.Element
 	current *list.Element
+	next    *list.Element
 }
 
 func (itr *iterator) HasNext() bool {
-	return itr.current.Next() != nil
+	return itr.next != nil
 }
 
 func (itr *iterator) Next() (*queue.Element, error) {
-	element := itr.current
-	itr.current = element.Next()
-	return element.Value.(*queue.Element), nil
+	itr.current = itr.next
+	itr.next = itr.current.Next()
+	return itr.current.Value.(*queue.Element), nil
 }
 
 func (itr *iterator) Remove() error {
