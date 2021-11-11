@@ -20,6 +20,7 @@ import (
 	"errors"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -37,16 +38,6 @@ type (
 		Id() packet.PacketId
 		SetId(id packet.PacketId)
 	}
-	// InitOptions is used to pass some required client information to the queue.Init()
-	InitOptions struct {
-		// CleanStart is the cleanStart field in the connect packet.
-		CleanStart bool
-		// Version is the client MQTT protocol version.
-		Version packet.Version
-		// ReadBytesLimit indicates the maximum publish size that is allow to read.
-		ReadBytesLimit uint32
-		Notifier       Notifier
-	}
 
 	Element struct {
 		// At represents the entry time.
@@ -56,7 +47,7 @@ type (
 		Expiry time.Time
 		Message
 	}
-	Queue interface {
+	Interface interface {
 		io.Closer
 		Add(elem *Element) error
 		// Replace replaces the PUBLISH with the PUBREL with the same packet id.
@@ -84,4 +75,267 @@ func IsExpired(now time.Time, elem *Element) bool {
 		return now.After(elem.Expiry)
 	}
 	return false
+}
+
+var _ Interface = (*Queue)(nil)
+
+type (
+	// InitOptions is used to pass some required client information to the queue.Init()
+	InitOptions struct {
+		// CleanStart is the cleanStart field in the connect packet.
+		CleanStart bool
+		// Version is the client MQTT protocol version.
+		Version packet.Version
+		// ReadBytesLimit indicates the maximum publish size that is allow to read.
+		ReadBytesLimit uint32
+		Notifier       Notifier
+	}
+	Options struct {
+		MaxQueuedMsg   int
+		InflightExpiry time.Duration
+		ClientId       string
+	}
+
+	Queue struct {
+		clientId       string
+		version        packet.Version
+		maxSize        int
+		readBytesLimit uint32
+
+		inflightDrained bool
+		inflightExpiry  time.Duration
+		closed          bool
+
+		notifier Notifier
+		cond     *sync.Cond
+		store    Store
+	}
+)
+
+func New(store Store, options *Options) *Queue {
+	return &Queue{
+		clientId:       options.ClientId,
+		inflightExpiry: options.InflightExpiry,
+		maxSize:        options.MaxQueuedMsg,
+		cond:           sync.NewCond(&sync.Mutex{}),
+		store:          store,
+	}
+}
+func (q *Queue) Init(opts *InitOptions) error {
+	q.cond.L.Lock()
+	defer func() {
+		q.cond.L.Unlock()
+		q.cond.Signal()
+	}()
+	q.closed = false
+	q.inflightDrained = false
+	if opts.CleanStart {
+		q.store.Reset()
+	}
+	q.readBytesLimit = opts.ReadBytesLimit
+	q.version = opts.Version
+	q.notifier = opts.Notifier
+
+	return nil
+}
+
+func (q *Queue) ReadInflight(maxSize uint) (elems []*Element, err error) {
+	q.cond.L.Lock()
+	defer q.cond.L.Unlock()
+	length := q.store.Len()
+	if q.store.Len() == 0 {
+		q.inflightDrained = true
+		return nil, nil
+	}
+	if int(maxSize) < length {
+		length = int(maxSize)
+	}
+	i := 0
+	for itr := q.store.Iterator(); itr.HasNext() && i < length; i++ {
+		element, _ := itr.Next()
+		if element.Id() != 0 {
+			if q.inflightExpiry != 0 {
+				element.Expiry = time.Now().Add(q.inflightExpiry)
+			}
+			elems = append(elems, element)
+		} else {
+			q.inflightDrained = true
+			break
+		}
+	}
+	return
+}
+
+func (q *Queue) Replace(elem *Element) (replaced bool, err error) {
+	q.cond.L.Lock()
+	defer q.cond.L.Unlock()
+	return q.store.Replace(elem)
+}
+
+func (q *Queue) Read(packetIds []packet.PacketId) (elements []*Element, err error) {
+	nowTime := time.Now()
+	q.cond.L.Lock()
+	defer q.cond.L.Unlock()
+	if !q.inflightDrained {
+		panic("must call ReadInflight to drain all inflight messages before Read")
+	}
+	for q.store.Len() == 0 && !q.closed {
+		// wait notify
+		q.cond.Wait()
+	}
+	if q.closed {
+		return nil, ErrClosed
+	}
+	length := q.store.Len()
+	packetIdsLen := len(packetIds)
+	if packetIdsLen < length {
+		length = packetIdsLen
+	}
+	var msgQueueDelta, inflightDelta int
+	var pflag int
+
+	i := 0
+	for itr := q.store.Iterator(); itr.HasNext() && i < length; i++ {
+		current, _ := itr.Next()
+		if IsExpired(nowTime, current) {
+			q.notifier.Dropped(current, ErrDropExpired)
+			_ = itr.Remove()
+			msgQueueDelta--
+			continue
+		}
+
+		pubMsg := current.Message.(*Publish)
+
+		if size := pubMsg.TotalBytes(q.version); size > q.readBytesLimit {
+			q.notifier.Dropped(current, ErrDropExceedsMaxPacketSize)
+			_ = itr.Remove()
+			msgQueueDelta--
+			continue
+		}
+		// remove qos 0 message after read
+		if pubMsg.QoS == 0 {
+
+			_ = itr.Remove()
+			msgQueueDelta--
+		} else {
+			pubMsg.SetId(packetIds[pflag])
+			// When the message becomes inflight message, update the expiry time.
+			if q.inflightExpiry != 0 {
+				current.Expiry = nowTime.Add(q.inflightExpiry)
+			}
+			pflag++
+			inflightDelta++
+
+		}
+		elements = append(elements, current)
+	}
+	q.notifier.MsgQueueAdded(msgQueueDelta)
+	q.notifier.InflightAdded(inflightDelta)
+	return
+}
+
+func (q *Queue) Remove(pid packet.PacketId) error {
+	q.cond.L.Lock()
+	defer q.cond.L.Unlock()
+
+	for itr := q.store.Iterator(); itr.HasNext(); {
+		element, _ := itr.Next()
+		if element.Id() == pid {
+			_ = itr.Remove()
+			q.notifier.MsgQueueAdded(-1)
+			q.notifier.InflightAdded(-1)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (q *Queue) Clean() error {
+	return nil
+}
+
+func (q *Queue) Close() error {
+	q.cond.L.Lock()
+	defer q.cond.L.Unlock()
+	q.closed = true
+	q.cond.Signal()
+	return nil
+}
+
+func (q *Queue) Add(elem *Element) (err error) {
+	nowTime := time.Now()
+	q.cond.L.Lock()
+	defer func() {
+		q.cond.L.Unlock()
+		// wake
+		q.cond.Signal()
+	}()
+	var drop bool
+	var dropElem *Element
+	var dropErr error
+	defer func() {
+		if drop {
+			if dropElem == nil {
+				// Discard current data
+				q.notifier.Dropped(elem, dropErr)
+				return
+			}
+			if err == ErrDropExpiredInflight {
+				q.notifier.InflightAdded(-1)
+			}
+
+			q.store.Remove(dropElem)
+			q.notifier.Dropped(dropElem, dropErr)
+		} else {
+			q.notifier.MsgQueueAdded(1)
+		}
+		q.store.Add(elem)
+	}()
+
+	if q.store.Len() >= q.maxSize {
+		err = ErrDropQueueFull
+		drop = true
+
+		if v := q.store.Front(); v != nil &&
+			IsExpired(nowTime, v) {
+			dropElem = v
+			dropErr = ErrDropExpiredInflight
+			return
+		}
+
+		// drop the current elem if there is no more non-inflight messages.
+		if q.inflightDrained && q.store.Front() == nil {
+			return
+		}
+
+		for itr := q.store.Iterator(); itr.HasNext(); {
+			e, _ := itr.Next()
+			pubMsg := e.Message.(*Publish)
+			if pubMsg.Id() == 0 {
+
+				if IsExpired(nowTime, e) {
+					dropElem = e
+					dropErr = ErrDropExpired
+					return
+				}
+				// drop qos0 message in the queue
+				if pubMsg.QoS == packet.QoS0 && dropElem == nil {
+					dropElem = e
+				}
+			}
+		}
+		if dropElem != nil {
+			return
+		}
+		if elem.Message.(*Publish).QoS == packet.QoS0 {
+			return
+		}
+		if q.inflightDrained {
+			// drop the front message
+			dropElem = q.store.Front()
+			return
+		}
+
+	}
+	return nil
 }
