@@ -257,7 +257,6 @@ func (c *client) readConn() {
 			return
 		}
 
-		zap.L().Debug("收到数据", zap.Any("packet", p))
 		c.in <- p
 		//zap.L().Info("发送至通道")
 		// 等待连接认证完成

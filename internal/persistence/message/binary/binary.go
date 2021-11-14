@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package encoding
+package binary
 
 import (
 	"bytes"
