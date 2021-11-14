@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -52,41 +53,41 @@ func TestGetNBytePool(t *testing.T) {
 	waitGroup.Wait()
 }
 
-//func BenchmarkGetNBytePool(b *testing.B) {
-//	b.ReportAllocs()
-//	n := 20
-//
-//	for i := 0; i < n; i++ {
-//		b.Run(strconv.Itoa(2<<i), func(b *testing.B) {
-//			b.ReportAllocs()
-//			pool := GetNBytePool(2 << i)
-//			b.RunParallel(func(pb *testing.PB) {
-//				for pb.Next() {
-//					a := pool.Get().([]byte)
-//					pool.Put(a)
-//				}
-//			})
-//		})
-//	}
-//}
-//func BenchmarkNewBytes(b *testing.B) {
-//	b.ReportAllocs()
-//	b.ResetTimer()
-//	n := 20
-//	for i := 0; i < n; i++ {
-//		b.Run(strconv.Itoa(2<<i), func(b *testing.B) {
-//			b.ReportAllocs()
-//			b.RunParallel(func(pb *testing.PB) {
-//				for pb.Next() {
-//					a := make([]byte, 2<<i)
-//					//_ = bytes.NewBuffer(a)
-//					_ = a
-//				}
-//			})
-//		})
-//	}
-//
-//}
+func BenchmarkGetNBytePool(b *testing.B) {
+	b.ReportAllocs()
+	n := 20
+
+	for i := 0; i < n; i++ {
+		b.Run(strconv.Itoa(2<<i), func(b *testing.B) {
+			b.ReportAllocs()
+			pool := GetNBytePool(2 << i)
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					a := pool.Get().([]byte)
+					pool.Put(a)
+				}
+			})
+		})
+	}
+}
+func BenchmarkNewBytes(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	n := 20
+	for i := 0; i < n; i++ {
+		b.Run(strconv.Itoa(2<<i), func(b *testing.B) {
+			b.ReportAllocs()
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					a := make([]byte, 2<<i)
+					//_ = bytes.NewBuffer(a)
+					_ = a
+				}
+			})
+		})
+	}
+
+}
 
 func TestGetBufferReaderSize(t *testing.T) {
 	buffer := bytes.NewBuffer(make([]byte, 1000))
