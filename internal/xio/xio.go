@@ -18,37 +18,14 @@ package xio
 
 import (
 	"bufio"
-	"golang.org/x/sync/singleflight"
 	"io"
-	"strconv"
 	"sync"
 )
 
 var (
 	bufReaderPool = &sync.Pool{}
 	bufWriterPool = &sync.Pool{}
-	bytesPoolMap  = &sync.Map{}
-	singleFlight  = &singleflight.Group{}
 )
-
-// GetNBytePool returns a buffer sync.Pool.
-// It is recommended to use n Byte greater than or equal to 64.
-func GetNBytePool(nByte int) *sync.Pool {
-	byteSizeStr := strconv.Itoa(nByte)
-	pool, _, _ := singleFlight.Do(byteSizeStr, func() (interface{}, error) {
-		if val, ok := bytesPoolMap.Load(byteSizeStr); ok {
-			return val, nil
-		}
-		pool := &sync.Pool{New: func() interface{} {
-			return make([]byte, nByte)
-		}}
-		bytesPoolMap.Store(byteSizeStr, pool)
-		return pool, nil
-	})
-	return pool.(*sync.Pool)
-}
-
-// -----------------
 
 // GetBufferReaderSize returns a bufio.Reader.
 func GetBufferReaderSize(r io.Reader, size int) *bufio.Reader {
