@@ -14,15 +14,22 @@
  *    limitations under the License.
  */
 
-package binary
+package xbinary
 
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/yunqi/lighthouse/internal/xbytes"
 	"io"
 )
 
-var InvalidLengthErr = errors.New("invalid length")
+var (
+	InvalidLengthErr = errors.New("invalid length")
+
+	read1BytesPool = xbytes.GetNBytePool(1)
+	read2BytesPool = xbytes.GetNBytePool(2)
+	read4BytesPool = xbytes.GetNBytePool(4)
+)
 
 func WriteUint16(w io.Writer, i uint16) error {
 	_, err := w.Write([]byte{byte(i >> 8), byte(i)})
@@ -30,7 +37,8 @@ func WriteUint16(w io.Writer, i uint16) error {
 }
 
 func ReadUint16(r io.Reader) (uint16, error) {
-	data := make([]byte, 2)
+	data := read2BytesPool.Get().([]byte)
+	defer read2BytesPool.Put(data)
 	n, err := r.Read(data)
 	if err != nil {
 		return 0, err
@@ -44,16 +52,20 @@ func ReadUint16(r io.Reader) (uint16, error) {
 //-----------------
 
 func WriteBool(w io.Writer, b bool) error {
-	var data = make([]byte, 1)
+	data := read1BytesPool.Get().([]byte)
+	defer read1BytesPool.Put(data)
 	if b {
 		data[0] = 1
+	} else {
+		data[0] = 0
 	}
 	_, err := w.Write(data)
 	return err
 }
 
 func ReadBool(r io.Reader) (bool, error) {
-	b := make([]byte, 1)
+	b := read1BytesPool.Get().([]byte)
+	defer read1BytesPool.Put(b)
 	_, err := r.Read(b)
 	if err != nil {
 		return false, err
@@ -64,7 +76,8 @@ func ReadBool(r io.Reader) (bool, error) {
 //------------
 
 func ReadUint32(r io.Reader) (uint32, error) {
-	data := make([]byte, 4)
+	data := read4BytesPool.Get().([]byte)
+	defer read4BytesPool.Put(data)
 	n, err := r.Read(data)
 	if err != nil {
 		return 0, err
@@ -76,19 +89,20 @@ func ReadUint32(r io.Reader) (uint32, error) {
 }
 
 func WriteUint32(w io.Writer, i uint32) error {
-	_, err := w.Write([]byte{
-		byte(i >> 24),
-		byte(i >> 16),
-		byte(i >> 8),
-		byte(i),
-	})
+	data := read4BytesPool.Get().([]byte)
+	defer read4BytesPool.Put(data)
+	data[0] = byte(i >> 24)
+	data[1] = byte(i >> 16)
+	data[2] = byte(i >> 8)
+	data[3] = byte(i)
+	_, err := w.Write(data)
 	return err
 
 }
 
 //------------
 
-func WriteString(w io.Writer, s []byte) (err error) {
+func WriteBytes(w io.Writer, s []byte) (err error) {
 	// length
 	err = WriteUint16(w, uint16(len(s)))
 	if err == nil {
@@ -96,16 +110,22 @@ func WriteString(w io.Writer, s []byte) (err error) {
 	}
 	return
 }
-func ReadString(r io.Reader) (b []byte, err error) {
-	nBytes := make([]byte, 2)
+
+func ReadBytes(r io.Reader) (b []byte, err error) {
+	nBytes := read2BytesPool.Get().([]byte)
+	defer read2BytesPool.Put(nBytes)
 	_, err = io.ReadFull(r, nBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	length := int(binary.BigEndian.Uint16(nBytes))
-	payload := make([]byte, length)
-
+	if length == 0 {
+		return nil, nil
+	}
+	pool := xbytes.GetNBytePool(length)
+	payload := pool.Get().([]byte)
+	defer pool.Put(payload)
 	_, err = io.ReadFull(r, payload)
 	if err != nil {
 		return nil, err

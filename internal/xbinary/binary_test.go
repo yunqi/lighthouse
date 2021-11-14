@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package binary
+package xbinary
 
 import (
 	"bytes"
@@ -200,21 +200,21 @@ func TestWriteUint32(t *testing.T) {
 
 func TestWriteString(t *testing.T) {
 	buffer := &bytes.Buffer{}
-	err := WriteString(buffer, []byte("1"))
+	err := WriteBytes(buffer, []byte("1"))
 	assert.NoError(t, err)
 	assert.EqualValues(t, bytes.NewBuffer([]byte{0, 1, '1'}), buffer)
-	err = WriteString(&limitWrite{}, []byte(" "))
+	err = WriteBytes(&limitWrite{}, []byte(" "))
 	assert.Error(t, err)
 }
 
 func TestReadString(t *testing.T) {
-	readString, err := ReadString(bytes.NewBuffer([]byte{0, 1, '1'}))
+	readString, err := ReadBytes(bytes.NewBuffer([]byte{0, 1, '1'}))
 	assert.NoError(t, err)
 	assert.EqualValues(t, "1", readString)
 
-	readString, err = ReadString(bytes.NewBuffer([]byte{0, 2, '1'}))
+	readString, err = ReadBytes(bytes.NewBuffer([]byte{0, 2, '1'}))
 	assert.Error(t, err)
-	readString, err = ReadString(bytes.NewBuffer([]byte{0}))
+	readString, err = ReadBytes(bytes.NewBuffer([]byte{0}))
 	assert.Error(t, err)
 
 }
