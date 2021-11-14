@@ -14,21 +14,23 @@
  *    limitations under the License.
  */
 
-package main
+package config
 
 import (
-	"github.com/yunqi/lighthouse/internal/server"
-	"github.com/yunqi/lighthouse/internal/xlog"
-	"net/http"
-	_ "net/http/pprof"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
+	"log"
+	"testing"
 )
 
-func main() {
-	go func() {
-		http.ListenAndServe("localhost:6060", nil)
-	}()
-
-	xlog.Dev()
-	newServer := server.NewServer(server.WithTcpListen(":1883"))
-	newServer.ServeTCP()
+func TestConfig_UnmarshalYAML(t *testing.T) {
+	c := &Config{}
+	b, err := ioutil.ReadFile("config.yaml")
+	if err != nil {
+		return
+	}
+	err = yaml.Unmarshal(b, c)
+	if err != nil {
+		log.Panic(err)
+	}
 }

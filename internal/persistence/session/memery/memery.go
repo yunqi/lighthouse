@@ -17,7 +17,8 @@
 package memery
 
 import (
-	"github.com/yunqi/lighthouse/internal/session"
+	"context"
+	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"sync"
 )
 
@@ -33,31 +34,31 @@ func New() *Store {
 	}
 }
 
-func (s *Store) Set(session *session.Session) error {
+func (s *Store) Set(ctx context.Context, session *session.Session) error {
 	s.m.Store(session.ClientId, session)
 	return nil
 }
 
-func (s *Store) Remove(clientId string) error {
+func (s *Store) Remove(ctx context.Context, clientId string) error {
 	s.m.Delete(clientId)
 	return nil
 }
 
-func (s *Store) Get(clientId string) (*session.Session, error) {
+func (s *Store) Get(ctx context.Context, clientId string) (*session.Session, error) {
 	if val, ok := s.m.Load(clientId); ok {
 		return val.(*session.Session), nil
 	}
 	return nil, session.NotFoundErr
 }
 
-func (s *Store) Range(fn session.RangeFn) error {
+func (s *Store) Range(ctx context.Context, fn session.RangeFn) error {
 	s.m.Range(func(_, value interface{}) bool {
 		return fn(value.(*session.Session))
 	})
 	return nil
 }
 
-func (s *Store) SetSessionExpiry(clientId string, expiryInterval uint32) error {
+func (s *Store) SetSessionExpiry(ctx context.Context, clientId string, expiryInterval uint32) error {
 	if value, ok := s.m.Load(clientId); ok {
 		value.(*session.Session).ExpiryInterval = expiryInterval
 	}

@@ -17,10 +17,11 @@
 package server
 
 import (
+	"github.com/panjf2000/ants/v2"
 	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
-	"github.com/yunqi/lighthouse/internal/session"
+	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"github.com/yunqi/lighthouse/internal/xio"
 	"go.uber.org/zap"
@@ -36,6 +37,8 @@ const (
 	Connecting Status = iota
 	Connected
 )
+
+var poolGo, _ = ants.NewPool(ants.DefaultAntsPoolSize)
 
 type (
 	Status byte
@@ -100,6 +103,7 @@ type (
 		RequestProblemInfo bool
 	}
 	client struct {
+		clientId      string
 		connectedAt   int64
 		clientConn    net.Conn
 		bufReader     io.Reader
@@ -172,8 +176,8 @@ func (c *client) Disconnect(disconnect *packet.Disconnect) {
 }
 
 func newClient(server *server, conn net.Conn) *client {
-	reader := xio.NewBufReaderSize(conn, 2048)
-	writer := xio.NewBufWriterSize(conn, 2048)
+	reader := xio.GetBufferReaderSize(conn, 2048)
+	writer := xio.GetBufferWriterSize(conn, 2048)
 	c := &client{
 		server:       server,
 		clientConn:   conn,
@@ -194,23 +198,24 @@ func (c *client) listen() {
 	zap.L().Info("监听该连接")
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(1)
-	go func() {
+	_ = poolGo.Submit(func() {
 		//read conn
 		defer waitGroup.Done()
 		c.readConn()
+	})
 
-	}()
 	waitGroup.Add(1)
-	go func() {
+	_ = poolGo.Submit(func() {
 		defer waitGroup.Done()
 		c.writeConn()
-	}()
+	})
+
 	if ok := c.connection(); ok {
 		waitGroup.Add(1)
-		go func() {
+		poolGo.Submit(func() {
 			defer waitGroup.Done()
 			c.handleConn()
-		}()
+		})
 	}
 	waitGroup.Wait()
 
@@ -252,7 +257,6 @@ func (c *client) readConn() {
 			return
 		}
 
-		zap.L().Info("收到数据", zap.Any("packet", p))
 		c.in <- p
 		//zap.L().Info("发送至通道")
 		// 等待连接认证完成
@@ -320,11 +324,35 @@ func (c *client) connection() (ok bool) {
 // TODO 验证客户端连接
 // connectAuthentication 连接验证
 func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
-	zap.L().Info("认证成功")
 	// 根据报文进行认证
 	var connack *packet.Connack
 	connack = conn.NewConnackPacket(code.Success, true)
-
+	c.clientId = string(conn.ClientId)
+	zap.L().Debug("认证成功", zap.String("clientId", c.clientId))
+	var msg *message.Message
+	if conn.WillFlag {
+		msg = &message.Message{
+			Dup:                    false,
+			QoS:                    conn.WillQoS,
+			Retained:               conn.WillRetain,
+			Topic:                  string(conn.WillTopic),
+			Payload:                conn.WillMessage,
+			PacketId:               0,
+			ContentType:            "",
+			CorrelationData:        nil,
+			MessageExpiry:          0,
+			PayloadFormat:          packet.PayloadFormatBytes,
+			ResponseTopic:          "",
+			SubscriptionIdentifier: nil,
+		}
+	}
+	c.session = &session.Session{
+		ClientId:          c.clientId,
+		Will:              msg,
+		WillDelayInterval: 0,
+		ConnectedAt:       time.Now(),
+		ExpiryInterval:    0,
+	}
 	c.write(connack)
 	return true
 }
@@ -359,9 +387,9 @@ func (c *client) handleConn() {
 }
 func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 
-	message := message.FromPublish(publish)
+	msg := message.FromPublish(publish)
 	var ackPacket packet.Packet
-	zap.L().Debug("message", zap.Any("message", message))
+	zap.L().Debug("msg", zap.Any("msg", msg))
 	switch publish.QoS {
 	case packet.QoS1:
 		ackPacket = publish.CreatePuback()
