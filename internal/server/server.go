@@ -91,7 +91,7 @@ func (s *server) ServeTCP() {
 		// 创建一个客户端连接
 		_ = accept
 		c := newClient(s, accept)
-		zap.L().Info("创建一个新的客户端连接")
+		zap.L().Debug("创建一个新的客户端连接")
 		// 监听该连接
 		go c.listen()
 	}

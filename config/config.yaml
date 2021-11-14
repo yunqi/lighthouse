@@ -1,0 +1,2 @@
+mqtt:
+  session_expiry: 1h

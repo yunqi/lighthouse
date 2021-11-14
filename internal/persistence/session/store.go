@@ -17,6 +17,7 @@
 package session
 
 import (
+	"context"
 	"errors"
 )
 
@@ -28,10 +29,10 @@ type (
 	RangeFn func(session *Session) bool
 
 	Store interface {
-		Set(session *Session) error
-		Remove(clientId string) error
-		Get(clientId string) (*Session, error)
-		Range(fn RangeFn) error
-		SetSessionExpiry(clientId string, expiryInterval uint32) error
+		Set(ctx context.Context, session *Session) error
+		Remove(ctx context.Context, clientId string) error
+		Get(ctx context.Context, clientId string) (*Session, error)
+		Range(ctx context.Context, fn RangeFn) error
+		SetSessionExpiry(ctx context.Context, clientId string, expiryInterval uint32) error
 	}
 )

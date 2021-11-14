@@ -100,6 +100,14 @@ const (
 	QoS1 QoS = 0x01
 	QoS2 QoS = 0x02
 )
+const (
+	PropPayloadFormat byte = iota + 1
+	PropMessageExpiry
+	PropContentType
+	PropResponseTopic
+	PropCorrelationData
+	PropSubscriptionIdentifier
+)
 
 var version2protocolName = map[Version]string{
 	Version31:  "MQIsdp", // 'M', 'Q', 'I', 's', 'd', 'p'
