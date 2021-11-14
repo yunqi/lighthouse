@@ -101,12 +101,33 @@ const (
 	QoS2 QoS = 0x02
 )
 const (
-	PropPayloadFormat byte = iota + 1
-	PropMessageExpiry
-	PropContentType
-	PropResponseTopic
-	PropCorrelationData
-	PropSubscriptionIdentifier
+	PropPayloadFormat          byte = 1
+	PropMessageExpiry          byte = 2
+	PropContentType            byte = 3
+	PropResponseTopic          byte = 8
+	PropCorrelationData        byte = 9
+	PropSubscriptionIdentifier byte = 11
+	PropSessionExpiryInterval  byte = 17
+	PropAssignedClientID       byte = 18
+	PropServerKeepAlive        byte = 19
+	PropAuthMethod             byte = 21
+	PropAuthData               byte = 22
+	PropRequestProblemInfo     byte = 23
+	PropWillDelayInterval      byte = 24
+	PropRequestResponseInfo    byte = 25
+	PropResponseInfo           byte = 26
+	PropServerReference        byte = 28
+	PropReasonString           byte = 31
+	PropReceiveMaximum         byte = 33
+	PropTopicAliasMaximum      byte = 34
+	PropTopicAlias             byte = 35
+	PropMaximumQOS             byte = 36
+	PropRetainAvailable        byte = 37
+	PropUser                   byte = 38
+	PropMaximumPacketSize      byte = 39
+	PropWildcardSubAvailable   byte = 40
+	PropSubIDAvailable         byte = 41
+	PropSharedSubAvailable     byte = 42
 )
 
 var version2protocolName = map[Version]string{
