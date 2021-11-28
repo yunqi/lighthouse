@@ -14,32 +14,30 @@
  *    limitations under the License.
  */
 
-package xbytes
+package persistence
 
 import (
-	"golang.org/x/sync/singleflight"
-	"strconv"
-	"sync"
+	"github.com/yunqi/lighthouse/internal/persistence/queue"
+	"github.com/yunqi/lighthouse/internal/persistence/session"
 )
 
 var (
-	bytesPoolMap = &sync.Map{}
-	singleFlight = &singleflight.Group{}
+	sessionStores = map[string]session.Store{}
+	queueStores   = map[string]queue.Store{}
 )
 
-// GetNBytePool returns a buffer sync.Pool.
-// It is recommended to use n Byte greater than or equal to 64.
-func GetNBytePool(nByte int) *sync.Pool {
-	byteSizeStr := strconv.Itoa(nByte)
-	pool, _, _ := singleFlight.Do(byteSizeStr, func() (interface{}, error) {
-		if val, ok := bytesPoolMap.Load(byteSizeStr); ok {
-			return val, nil
-		}
-		pool := &sync.Pool{New: func() interface{} {
-			return make([]byte, nByte)
-		}}
-		bytesPoolMap.Store(byteSizeStr, pool)
-		return pool, nil
-	})
-	return pool.(*sync.Pool)
+func RegisterSessionStore(name string, store session.Store) {
+	sessionStores[name] = store
+}
+func GetSessionStore(name string) (store session.Store, ok bool) {
+	s, ok := sessionStores[name]
+	return s, ok
+}
+
+func RegisterQueueStore(name string, store queue.Store) {
+	queueStores[name] = store
+}
+func GetQueueStore(name string) (store queue.Store, ok bool) {
+	s, ok := queueStores[name]
+	return s, ok
 }

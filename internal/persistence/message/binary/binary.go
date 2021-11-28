@@ -18,9 +18,9 @@ package binary
 
 import (
 	"bytes"
+	"github.com/chenquan/go-pkg/xbinary"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
-	"github.com/yunqi/lighthouse/internal/xbinary"
 	"io"
 )
 
@@ -36,30 +36,30 @@ func EncodeMessage(msg *message.Message, w *bytes.Buffer) {
 	if msg == nil {
 		return
 	}
-	xbinary.WriteBool(w, msg.Dup)
+	_ = xbinary.WriteBool(w, msg.Dup)
 	_ = w.WriteByte(msg.QoS)
-	xbinary.WriteBool(w, msg.Retained)
-	xbinary.WriteBytes(w, []byte(msg.Topic))
-	xbinary.WriteBytes(w, msg.Payload)
-	xbinary.WriteUint16(w, msg.PacketId)
+	_ = xbinary.WriteBool(w, msg.Retained)
+	_ = xbinary.WriteBytes(w, []byte(msg.Topic))
+	_ = xbinary.WriteBytes(w, msg.Payload)
+	_ = xbinary.WriteUint16(w, msg.PacketId)
 	if len(msg.ContentType) != 0 {
 		_ = w.WriteByte(packet.PropContentType)
-		xbinary.WriteBytes(w, []byte(msg.ContentType))
+		_ = xbinary.WriteBytes(w, []byte(msg.ContentType))
 	}
 	if len(msg.CorrelationData) != 0 {
 		_ = w.WriteByte(packet.PropCorrelationData)
-		xbinary.WriteBytes(w, msg.CorrelationData)
+		_ = xbinary.WriteBytes(w, msg.CorrelationData)
 	}
 	if msg.MessageExpiry != 0 {
 		_ = w.WriteByte(packet.PropMessageExpiry)
-		xbinary.WriteUint32(w, msg.MessageExpiry)
+		_ = xbinary.WriteUint32(w, msg.MessageExpiry)
 	}
 	_ = w.WriteByte(packet.PropPayloadFormat)
 	_ = w.WriteByte(msg.PayloadFormat)
 
 	if len(msg.ResponseTopic) != 0 {
 		_ = w.WriteByte(packet.PropResponseTopic)
-		xbinary.WriteBytes(w, []byte(msg.ResponseTopic))
+		_ = xbinary.WriteBytes(w, []byte(msg.ResponseTopic))
 	}
 	for _, v := range msg.SubscriptionIdentifier {
 		_ = w.WriteByte(packet.PropSubscriptionIdentifier)

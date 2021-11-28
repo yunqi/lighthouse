@@ -17,13 +17,13 @@
 package server
 
 import (
-	"github.com/panjf2000/ants/v2"
+	"context"
+	"github.com/chenquan/go-pkg/xio"
 	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/xerror"
-	"github.com/yunqi/lighthouse/internal/xio"
 	"go.uber.org/zap"
 	"io"
 	"net"
@@ -37,8 +37,6 @@ const (
 	Connecting Status = iota
 	Connected
 )
-
-var poolGo, _ = ants.NewPool(ants.DefaultAntsPoolSize)
 
 type (
 	Status byte
@@ -121,6 +119,7 @@ type (
 		disconnect    *packet.Disconnect
 		closed        chan struct{}
 		connected     chan struct{}
+		wg            sync.WaitGroup
 	}
 )
 
@@ -178,6 +177,7 @@ func (c *client) Disconnect(disconnect *packet.Disconnect) {
 func newClient(server *server, conn net.Conn) *client {
 	reader := xio.GetBufferReaderSize(conn, 2048)
 	writer := xio.GetBufferWriterSize(conn, 2048)
+
 	c := &client{
 		server:       server,
 		clientConn:   conn,
@@ -195,29 +195,53 @@ func newClient(server *server, conn net.Conn) *client {
 }
 
 func (c *client) listen() {
+	var err error
 	zap.L().Info("监听该连接")
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(1)
-	_ = poolGo.Submit(func() {
+	readWg := sync.WaitGroup{}
+	readWg.Add(1)
+	err = poolGo.Submit(func() {
 		//read conn
-		defer waitGroup.Done()
+		defer readWg.Done()
 		c.readConn()
 	})
+	if handleGoroutineErr(err) {
+		return
+	}
 
-	waitGroup.Add(1)
-	_ = poolGo.Submit(func() {
-		defer waitGroup.Done()
+	c.wg.Add(1)
+	err = poolGo.Submit(func() {
+		defer c.wg.Done()
 		c.writeConn()
 	})
-
+	if handleGoroutineErr(err) {
+		return
+	}
 	if ok := c.connection(); ok {
-		waitGroup.Add(1)
-		poolGo.Submit(func() {
-			defer waitGroup.Done()
+		// 认证成功
+
+		// 拉取消息
+		c.wg.Add(1)
+		err := poolGo.Submit(func() {
+			c.pollMessageHandler()
+			c.wg.Done()
+		})
+		if handleGoroutineErr(err) {
+			return
+		}
+		c.wg.Add(1)
+		err = poolGo.Submit(func() {
+			defer c.wg.Done()
 			c.handleConn()
 		})
+		if handleGoroutineErr(err) {
+			return
+		}
+
 	}
-	waitGroup.Wait()
+
+	readWg.Wait()
+
+	c.wg.Wait()
 
 }
 
@@ -242,7 +266,6 @@ func (c *client) readConn() {
 				_ = c.clientConn.SetReadDeadline(time.Now().Add(time.Duration(keepAlive/2+keepAlive) * time.Second))
 			}
 		}
-		//zap.L().Debug("接收数据中....")
 		p, err := c.packetReader.Read()
 		if err != nil {
 			if err != io.EOF && p != nil {
@@ -256,9 +279,13 @@ func (c *client) readConn() {
 			}
 			return
 		}
-
+		if connect, ok := p.(*packet.Connect); ok {
+			zap.L().Debug("接收认证信息", zap.String("ClientId", string(connect.ClientId)))
+		} else {
+			zap.L().Debug("Rec data", zap.String("packet", p.String()))
+		}
 		c.in <- p
-		//zap.L().Info("发送至通道")
+
 		// 等待连接认证完成
 		c.waitConnection()
 
@@ -270,7 +297,7 @@ func (c *client) writeConn() {
 	defer func() {
 	}()
 	for p := range c.out {
-		zap.L().Debug("写入数据", zap.Any("packet", p))
+		zap.L().Debug("Ret data", zap.String("packet", p.String()))
 		err := c.packetWriter.WritePacketAndFlush(p)
 		if err != nil {
 			return
@@ -329,6 +356,8 @@ func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
 	connack = conn.NewConnackPacket(code.Success, true)
 	c.clientId = string(conn.ClientId)
 	zap.L().Debug("认证成功", zap.String("clientId", c.clientId))
+
+	c.status = Connected
 	var msg *message.Message
 	if conn.WillFlag {
 		msg = &message.Message{
@@ -353,6 +382,23 @@ func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
 		ConnectedAt:       time.Now(),
 		ExpiryInterval:    0,
 	}
+	// client session
+	_ = c.server.sessions.Set(context.Background(), c.session)
+	c.version = conn.Version
+	c.opt = &ClientOption{
+		ClientId:  c.clientId,
+		Username:  string(conn.Username),
+		KeepAlive: conn.KeepAlive,
+		//SessionExpiry:       conn,
+		MaxInflight:         0,
+		ReceiveMax:          0,
+		ClientMaxPacketSize: 0,
+		ServerMaxPacketSize: 0,
+		ClientTopicAliasMax: 0,
+		ServerTopicAliasMax: 0,
+		RequestProblemInfo:  false,
+	}
+
 	c.write(connack)
 	return true
 }
@@ -374,11 +420,11 @@ func (c *client) handleConn() {
 			c.handlePubrel(packetData)
 		case *packet.Subscribe:
 			c.handleSubscribe(packetData)
-
 		case *packet.Unsubscribe:
-
+			c.handleUnsubscribe(packetData)
 		case *packet.Disconnect:
 			break
+		default:
 		}
 		if err != nil {
 			break
@@ -387,9 +433,9 @@ func (c *client) handleConn() {
 }
 func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 
-	msg := message.FromPublish(publish)
+	//msg := message.FromPublish(publish)
 	var ackPacket packet.Packet
-	zap.L().Debug("msg", zap.Any("msg", msg))
+	//zap.L().Debug("msg", zap.Any("msg", msg))
 	switch publish.QoS {
 	case packet.QoS1:
 		ackPacket = publish.CreatePuback()
@@ -399,30 +445,36 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 
 	if ackPacket != nil {
 		// 返回响应
-		zap.L().Debug("返回响应", zap.Any("packet", ackPacket))
+		//zap.L().Debug("返回响应", zap.Any("packet", ackPacket))
 		c.write(ackPacket)
 	}
-	c.write(publish)
 
 	return nil
 }
 
 func (c *client) handlePingreq(pingreq *packet.Pingreq) {
-	pingresp := pingreq.CreatePingresp()
-	c.write(pingresp)
+	c.write(pingreq.CreatePingresp())
 }
 
 func (c *client) handlePubrel(pubrel *packet.Pubrel) {
-	pubcomp := pubrel.CreatePubcomp()
-	c.write(pubcomp)
+	c.write(pubrel.CreatePubcomp())
 }
 
 func (c *client) handleSubscribe(subscribe *packet.Subscribe) {
-	suback := &packet.Suback{
+	c.write(&packet.Suback{
 		Version:  subscribe.Version,
 		PacketId: subscribe.PacketId,
 		Payload:  make([]code.Code, len(subscribe.Topics)),
-	}
+	})
+}
 
-	c.write(suback)
+func (c *client) handleUnsubscribe(data *packet.Unsubscribe) {
+	c.write(&packet.Unsuback{
+		Version:  data.Version,
+		PacketId: data.PacketId,
+	})
+}
+
+func (c *client) pollMessageHandler() {
+
 }

@@ -22,6 +22,10 @@ import (
 	"sync"
 )
 
+func init() {
+	//persistence.RegisterSessionStore("memory", New())
+}
+
 type (
 	Store struct {
 		m *sync.Map
