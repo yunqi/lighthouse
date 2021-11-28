@@ -2,8 +2,8 @@ github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLj
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/cespare/xxhash/v2 v2.1.2 h1:YRXhKfTDauu4ajMg1TPgFO5jnlC2HCbmLXMcTG5cbYE=
 github.com/cespare/xxhash/v2 v2.1.2/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
-github.com/chenquan/go-pkg v0.1.0 h1:kZjCTxqb3y0kf0rmIRnotkb2ZpLaqulM+iW061znA6A=
-github.com/chenquan/go-pkg v0.1.0/go.mod h1:ymsyP+R6ALDtJXx4280H/ADoZbr/zAjCt69PxgL9eJk=
+github.com/chenquan/go-pkg v0.1.1 h1:uWRPb8n/gzUMybQ606Qip9mnbmeQKDMxstsD1adhHqc=
+github.com/chenquan/go-pkg v0.1.1/go.mod h1:ymsyP+R6ALDtJXx4280H/ADoZbr/zAjCt69PxgL9eJk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

@@ -3,7 +3,7 @@ module github.com/yunqi/lighthouse
 go 1.17
 
 require (
-	github.com/chenquan/go-pkg v0.1.0
+	github.com/chenquan/go-pkg v0.1.1
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/websocket v1.4.2
