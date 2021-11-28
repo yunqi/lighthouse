@@ -20,58 +20,77 @@ import (
 	"context"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/panjf2000/ants/v2"
+	"github.com/yunqi/lighthouse/internal/persistence/session"
+	"github.com/yunqi/lighthouse/internal/persistence/session/memery"
 	"go.uber.org/zap"
 	"net"
 	"os"
 	"time"
 )
 
+var poolGo, _ = ants.NewPool(ants.DefaultAntsPoolSize)
+
 type (
 	Server interface {
 		Stop(ctx context.Context) error
 		Run() error
 	}
-	Option func(server *server)
+	Option func(server *Options)
 
+	Options struct {
+		tcpListen       string
+		websocketListen string
+		storeType       string
+	}
 	server struct {
 		tcpListen         string
 		websocketListen   string
 		tcpListener       net.Listener //tcp listeners
 		websocketListener *websocket.Conn
+		sessions          session.Store
 	}
 )
 
 func WithTcpListen(tcpListen string) Option {
-	return func(server *server) {
-		server.tcpListen = tcpListen
+	return func(opts *Options) {
+		opts.tcpListen = tcpListen
 	}
 }
 func WithWebsocketListen(websocketListen string) Option {
-	return func(server *server) {
-		server.websocketListen = websocketListen
+	return func(opts *Options) {
+		opts.websocketListen = websocketListen
 	}
 }
 
 func NewServer(opts ...Option) *server {
+	options := loadServerOptions(opts...)
 	s := &server{}
-	for _, opt := range opts {
-		opt(s)
-	}
-	if s.tcpListen == "" {
-		s.tcpListen = ":1883"
-	}
-	s.init()
+
+	s.init(options)
 	return s
+}
+func loadServerOptions(opts ...Option) *Options {
+	options := new(Options)
+	for _, opt := range opts {
+		opt(options)
+	}
+	if options.tcpListen == "" {
+		options.tcpListen = ":1883"
+	}
+	return options
 }
 
 func (s *server) ServeTCP() {
 	defer func() {
-		_ = s.tcpListener.Close()
+		err := s.tcpListener.Close()
+		if err != nil {
+			zap.L().Error("tcpListener close", zap.Error(err))
+		}
 	}()
 	var tempDelay time.Duration
 
 	for {
-
 		accept, err := s.tcpListener.Accept()
 		if err != nil {
 			if ne, ok := err.(net.Error); ok && ne.Temporary() {
@@ -89,15 +108,24 @@ func (s *server) ServeTCP() {
 			return
 		}
 		// 创建一个客户端连接
-		_ = accept
+
 		c := newClient(s, accept)
 		zap.L().Debug("创建一个新的客户端连接")
 		// 监听该连接
-		go c.listen()
+		err = poolGo.Submit(func() {
+			c.listen()
+		})
+		if err != nil {
+			zap.L().Error("资源耗尽", zap.Error(err))
+			continue
+		}
+
 	}
 }
 
-func (s *server) init() {
+func (s *server) init(opts *Options) {
+	s.tcpListen = opts.tcpListen
+	s.websocketListen = opts.websocketListen
 
 	ln, err := net.Listen("tcp", s.tcpListen)
 	if err != nil {
@@ -105,4 +133,14 @@ func (s *server) init() {
 		os.Exit(1)
 	}
 	s.tcpListener = ln
+	// TODO 创建一个存储客户端会话的容器
+	s.sessions = memery.New()
+
+}
+func handleGoroutineErr(err error) (isErr bool) {
+	if err != nil {
+		zap.L().Error("资源耗尽", zap.Error(err))
+		return true
+	}
+	return false
 }

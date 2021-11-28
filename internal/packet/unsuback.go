@@ -18,7 +18,7 @@ package packet
 
 import (
 	"bytes"
-	"encoding/json"
+	"fmt"
 	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"io"
@@ -59,6 +59,5 @@ func (u *Unsuback) Decode(r io.Reader) (err error) {
 }
 
 func (u *Unsuback) String() string {
-	b, _ := json.Marshal(u)
-	return string(b)
+	return fmt.Sprintf("Unsuback - Version:%s, PacketId:%d", u.Version, u.PacketId)
 }

@@ -76,7 +76,7 @@ type Mqtt struct {
 	// MaxQueuedMsg is the maximum queue length of the outgoing messages.
 	// If the queue is full, some message will be dropped.
 	// The message dropping strategy is described in the document of the persistence/queue.Store interface.
-	MaxQueuedMsg int `yaml:"max_queued_messages"`
+	MaxQueueMessages int `yaml:"max_queue_messages"`
 	// MaxInflight limits inflight message length of the outgoing messages.
 	// Inflight message is also stored in the message queue, so it must be less than or equal to MaxQueuedMsg.
 	// Inflight message is the QoS 1 or QoS 2 message that has been sent out to a client but not been acknowledged yet.
@@ -88,7 +88,7 @@ type Mqtt struct {
 	// DeliveryMode is the delivery mode. The possible value can be "overlap" or "onlyonce".
 	// It is possible for a client’s subscriptions to overlap so that a published message might match multiple filters.
 	// When set to "overlap" , the server will deliver one message for each matching subscription and respecting the subscription’s QoS in each case.
-	// When set to "onlyonce",the server will deliver the message to the client respecting the maximum QoS of all the matching subscriptions.
+	// When set to "onlyOnce",the server will deliver the message to the client respecting the maximum QoS of all the matching subscriptions.
 	DeliveryMode string `yaml:"delivery_mode"`
 	// AllowZeroLenClientId indicates whether to allow a client to connect with empty client id.
 	AllowZeroLenClientId bool `yaml:"allow_zero_len_client_id"`

@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-redis/redis/v8"
-	session2 "github.com/yunqi/lighthouse/internal/persistence/session"
+	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"golang.org/x/sync/singleflight"
 	"sync"
 	"time"
@@ -28,13 +28,17 @@ import (
 
 const sessionPrefix = "lighthouse:session:"
 
+func init() {
+	//persistence.RegisterSessionStore("redis", New())
+}
+
 type Redis struct {
 	client       redis.Client
-	singleflight singleflight.Group
+	singleFlight singleflight.Group
 	pool         sync.Pool
 }
 
-func (r *Redis) Set(ctx context.Context, session *session2.Session) error {
+func (r *Redis) Set(ctx context.Context, session *session.Session) error {
 	jsonData, _ := json.Marshal(session)
 	//r.client.HSet(ctx,)
 	statusCmd := r.client.Set(ctx, session.ClientId, jsonData, time.Second*time.Duration(session.ExpiryInterval))
@@ -47,8 +51,8 @@ func (r *Redis) Remove(ctx context.Context, clientId string) error {
 	return r.client.Del(ctx, clientId).Err()
 }
 
-func (r *Redis) Get(ctx context.Context, clientId string) (*session2.Session, error) {
-	ValStr, err, _ := r.singleflight.Do(clientId, func() (interface{}, error) {
+func (r *Redis) Get(ctx context.Context, clientId string) (*session.Session, error) {
+	ValStr, err, _ := r.singleFlight.Do(clientId, func() (interface{}, error) {
 		stringCmd := r.client.Get(ctx, clientId)
 		result, err := stringCmd.Bytes()
 		return result, err
@@ -56,7 +60,7 @@ func (r *Redis) Get(ctx context.Context, clientId string) (*session2.Session, er
 	if err != nil {
 		return nil, err
 	}
-	s := new(session2.Session)
+	s := new(session.Session)
 	err = json.Unmarshal(ValStr.([]byte), s)
 	if err != nil {
 		return nil, err
@@ -65,7 +69,7 @@ func (r *Redis) Get(ctx context.Context, clientId string) (*session2.Session, er
 
 }
 
-func (r *Redis) Range(ctx context.Context, fn session2.RangeFn) error {
+func (r *Redis) Range(ctx context.Context, fn session.RangeFn) error {
 	panic("implement me")
 }
 

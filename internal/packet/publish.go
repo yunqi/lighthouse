@@ -112,7 +112,7 @@ func (p *Publish) Decode(r io.Reader) (err error) {
 }
 
 func (p *Publish) String() string {
-	return fmt.Sprintf("Publish, Version: %v, PacketId: %v, Dup: %v, Qos: %v, Retain: %v, TopicName: %s, Payload: %s",
+	return fmt.Sprintf("Publish - Version: %v, PacketId: %v, Dup: %v, Qos: %v, Retain: %v, TopicName: %s, Payload: %s",
 		p.Version, p.PacketId, p.Dup, p.QoS, p.Retain, p.TopicName, p.Payload)
 }
 
