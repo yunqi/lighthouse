@@ -66,5 +66,5 @@ func (pb *Pubcomp) Decode(r io.Reader) (err error) {
 
 // String returns string.
 func (pb *Pubcomp) String() string {
-	return fmt.Sprintf("Pubcomp - Version:%s, PacketId:%d", pb.Version, pb.PacketId)
+	return fmt.Sprintf("Pubcomp - Version: %s, PacketId: %d", pb.Version, pb.PacketId)
 }

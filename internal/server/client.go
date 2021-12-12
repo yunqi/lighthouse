@@ -18,10 +18,13 @@ package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/chenquan/go-pkg/xio"
 	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
+	"github.com/yunqi/lighthouse/internal/persistence/queue"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"go.uber.org/zap"
@@ -120,6 +123,8 @@ type (
 		closed        chan struct{}
 		connected     chan struct{}
 		wg            sync.WaitGroup
+		queueStore    queue.Queue
+		limit         *packetIdLimiter
 	}
 )
 
@@ -171,7 +176,6 @@ func (c *client) IsConnecting() bool {
 	return c.status == Connecting
 }
 func (c *client) Disconnect(disconnect *packet.Disconnect) {
-	panic("implement me")
 }
 
 func newClient(server *server, conn net.Conn) *client {
@@ -398,7 +402,7 @@ func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
 		ServerTopicAliasMax: 0,
 		RequestProblemInfo:  false,
 	}
-
+	c.newPacketIdLimiter(c.opt.MaxInflight)
 	c.write(connack)
 	return true
 }
@@ -476,5 +480,81 @@ func (c *client) handleUnsubscribe(data *packet.Unsubscribe) {
 }
 
 func (c *client) pollMessageHandler() {
+	var err error
+	defer func() {
+		if re := recover(); re != nil {
+			err = errors.New(fmt.Sprint(re))
+		}
+		//c.setError(err)
+	}()
+	cont := true
+	for cont {
 
+		cont, err = c.pollInFlights()
+
+		if err != nil {
+			return
+		}
+	}
+	var ids []packet.PacketId
+	for {
+		max := uint16(100)
+		if c.opt.MaxInflight < max {
+			max = c.opt.MaxInflight
+		}
+		ids = c.limit.pollPacketIds(max)
+		if ids == nil {
+			return
+		}
+		ids, err = c.pollNewMessages(ids)
+		if err != nil {
+			return
+		}
+		c.limit.batchRelease(ids)
+	}
+}
+func (c *client) pollNewMessages(ids []packet.PacketId) (unused []packet.PacketId, err error) {
+	var elems []*queue.Element
+	elems, err = c.queueStore.Read(ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range elems {
+		switch m := v.Message.(type) {
+		case *queue.Publish:
+			if m.QoS != packet.QoS0 {
+				ids = ids[1:]
+			}
+			c.write(message.ToPublish(m.Message, c.version))
+		case *queue.Pubrel:
+		}
+	}
+	return ids, err
+}
+func (c *client) pollInFlights() (bool, error) {
+	var elems []*queue.Element
+	elems, err := c.queueStore.ReadInflight(uint(c.opt.MaxInflight))
+	if err != nil || len(elems) == 0 {
+		return false, err
+	}
+	c.limit.lock()
+	defer c.limit.unlock()
+	for _, elem := range elems {
+		id := elem.Message.Id()
+		switch m := elem.Message.(type) {
+		case *queue.Publish:
+			m.Dup = true
+
+			m.SubscriptionIdentifier = nil
+			c.limit.markUsedLocked(id)
+			c.write(message.ToPublish(m.Message, c.version))
+		case *queue.Pubrel:
+			c.write(&packet.Pubrel{PacketId: id})
+		}
+	}
+	return false, nil
+}
+
+func (c *client) newPacketIdLimiter(limit uint16) {
+	c.limit = newPacketIDLimiter(limit)
 }

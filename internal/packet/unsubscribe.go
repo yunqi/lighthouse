@@ -82,5 +82,5 @@ func (u *Unsubscribe) Decode(r io.Reader) (err error) {
 }
 
 func (u *Unsubscribe) String() string {
-	return fmt.Sprintf("Unsubscribe - Version:%s, PacketId:%d, Topics:%v", u.Version, u.PacketId, u.Topics)
+	return fmt.Sprintf("Unsubscribe - Version: %s, PacketId: %d, Topics: %v", u.Version, u.PacketId, u.Topics)
 }

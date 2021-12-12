@@ -40,7 +40,7 @@ type (
 )
 
 func (m *Message) String() string {
-	return fmt.Sprintf("Message - Dup:%v, QoS:%d, Retained:%v, Topic:%s, Payload:%s,PacketId:%d, MessageExpiry:%d",
+	return fmt.Sprintf("Message - Dup: %v, QoS: %d, Retained: %v, Topic: %s, Payload: %s,PacketId: %d, MessageExpiry: %d",
 		m.Dup, m.QoS, m.Retained, m.Topic, m.Payload, m.PacketId, m.MessageExpiry,
 	)
 }
@@ -108,4 +108,18 @@ func getVariableLength(l int) int {
 		return 4
 	}
 	return 0
+}
+
+func ToPublish(msg *Message, version packet.Version) *packet.Publish {
+	pub := &packet.Publish{
+		Dup:       msg.Dup,
+		QoS:       msg.QoS,
+		PacketId:  msg.PacketId,
+		Retain:    msg.Retained,
+		TopicName: []byte(msg.Topic),
+		Payload:   msg.Payload,
+		Version:   version,
+	}
+
+	return pub
 }

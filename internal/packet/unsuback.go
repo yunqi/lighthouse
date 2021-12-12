@@ -59,5 +59,5 @@ func (u *Unsuback) Decode(r io.Reader) (err error) {
 }
 
 func (u *Unsuback) String() string {
-	return fmt.Sprintf("Unsuback - Version:%s, PacketId:%d", u.Version, u.PacketId)
+	return fmt.Sprintf("Unsuback - Version: %s, PacketId: %d", u.Version, u.PacketId)
 }

@@ -70,7 +70,7 @@ func (p *Pubrec) Decode(r io.Reader) (err error) {
 }
 
 func (p *Pubrec) String() string {
-	return fmt.Sprintf("Pubrec - Version:%s, PacketId:%d", p.Version, p.PacketId)
+	return fmt.Sprintf("Pubrec - Version: %s, PacketId: %d", p.Version, p.PacketId)
 }
 
 // CreateNewPubrel returns the Pubrel struct related to the Pubrec struct in QoS 2.

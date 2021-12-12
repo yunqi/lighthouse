@@ -78,5 +78,5 @@ func (s *Suback) Decode(r io.Reader) (err error) {
 }
 
 func (s *Suback) String() string {
-	return fmt.Sprintf("Suback - Versoin: %s, PacketId:%d", s.Version, s.PacketId)
+	return fmt.Sprintf("Suback - Versoin: %s, PacketId: %d", s.Version, s.PacketId)
 }

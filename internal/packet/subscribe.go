@@ -97,5 +97,5 @@ func (s *Subscribe) Decode(r io.Reader) (err error) {
 }
 
 func (s *Subscribe) String() string {
-	return fmt.Sprintf("Subscribe - Versioin:%s,PacketId:%d, Topics:%v", s.Version, s.PacketId, s.Topics)
+	return fmt.Sprintf("Subscribe - Versioin: %s,PacketId: %d, Topics: %v", s.Version, s.PacketId, s.Topics)
 }

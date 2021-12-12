@@ -83,6 +83,6 @@ func (c *Connack) Decode(r io.Reader) (err error) {
 }
 
 func (c *Connack) String() string {
-	return fmt.Sprintf("Connack - Version:%s, SessionPresent:%v, Code:%v",
+	return fmt.Sprintf("Connack - Version: %s, SessionPresent: %v, Code: %v",
 		c.Version, c.SessionPresent, c.Code)
 }
