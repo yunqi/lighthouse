@@ -62,7 +62,7 @@ func (p *Pubrel) Decode(r io.Reader) (err error) {
 }
 
 func (p *Pubrel) String() string {
-	return fmt.Sprintf("Pubrel - Version:%s, PacketId:%d", p.Version, p.PacketId)
+	return fmt.Sprintf("Pubrel - Version: %s, PacketId: %d", p.Version, p.PacketId)
 }
 
 // CreatePubcomp returns the Pubcomp struct related to the Pubrel struct in QoS 2.

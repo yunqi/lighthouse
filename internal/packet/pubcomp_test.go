@@ -59,5 +59,5 @@ func TestPubcomp_String(t *testing.T) {
 	puback, err := NewPubcomp(fixedHeader, Version311, bytes.NewBuffer([]byte{0x0, 0x0}))
 	assert.NoError(t, err)
 	assert.NotNil(t, puback)
-	assert.Equal(t, "Pubcomp - Version:MQTT3.1.1, PacketId:0", puback.String())
+	assert.Equal(t, "Pubcomp - Version: MQTT3.1.1, PacketId: 0", puback.String())
 }

@@ -70,5 +70,5 @@ func (bp *Puback) Decode(r io.Reader) (err error) {
 }
 
 func (bp *Puback) String() string {
-	return fmt.Sprintf("Puback - Version:%s, PacketId:%d", bp.Version, bp.PacketId)
+	return fmt.Sprintf("Puback - Version: %s, PacketId: %d", bp.Version, bp.PacketId)
 }
