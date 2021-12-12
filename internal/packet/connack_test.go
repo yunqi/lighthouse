@@ -158,7 +158,7 @@ func TestConnack_String(t *testing.T) {
 				SessionPresent: false,
 				Code:           0,
 			},
-			"Connack - Version: MQTT3.1.1, SessionPresent:false, Code:0",
+			"Connack - Version: MQTT3.1.1, SessionPresent: false, Code: 0",
 		}, {
 			"2",
 			fields{
@@ -167,7 +167,7 @@ func TestConnack_String(t *testing.T) {
 				SessionPresent: true,
 				Code:           1,
 			},
-			"Connack - Version: MQTT3.1.1, SessionPresent:true, Code:1",
+			"Connack - Version: MQTT3.1.1, SessionPresent: true, Code: 1",
 		}, {
 			"3",
 			fields{
@@ -176,7 +176,7 @@ func TestConnack_String(t *testing.T) {
 				SessionPresent: true,
 				Code:           11,
 			},
-			"Connack - Version: MQTT3.1.1, SessionPresent:true, Code:11",
+			"Connack - Version: MQTT3.1.1, SessionPresent: true, Code: 11",
 		},
 	}
 	for _, tt := range tests {
