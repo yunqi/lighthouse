@@ -20,12 +20,11 @@ import (
 	"context"
 	"github.com/gorilla/websocket"
 	"github.com/yunqi/lighthouse/internal/goroutine"
+	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
-	"github.com/yunqi/lighthouse/internal/persistence/session/memery"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"go.uber.org/zap"
 	"net"
-	"os"
 	"time"
 )
 
@@ -37,9 +36,10 @@ type (
 	Option func(server *Options)
 
 	Options struct {
-		tcpListen       string
-		websocketListen string
-		storeType       string
+		tcpListen        string
+		websocketListen  string
+		sessionStoreType string
+		queueStoreType   string
 	}
 	server struct {
 		tcpListen         string
@@ -66,7 +66,6 @@ func NewServer(opts ...Option) *server {
 	options := loadServerOptions(opts...)
 	s := &server{}
 	s.init(options)
-	s.log = xlog.LoggerModule("server")
 	return s
 }
 func loadServerOptions(opts ...Option) *Options {
@@ -121,15 +120,20 @@ func (s *server) ServeTCP() {
 func (s *server) init(opts *Options) {
 	s.tcpListen = opts.tcpListen
 	s.websocketListen = opts.websocketListen
+	s.log = xlog.LoggerModule("server")
+
+	sessionStore, ok := persistence.GetSessionStore(opts.sessionStoreType)
+	if !ok {
+		s.log.Panic("start tcp error", zap.String("tcp", s.tcpListen))
+	}
 
 	ln, err := net.Listen("tcp", s.tcpListen)
 	if err != nil {
-		s.log.Panic("", zap.Error(err))
-		os.Exit(1)
+		s.log.Panic("start tcp error", zap.String("tcp", s.tcpListen), zap.Error(err))
 	}
 	s.tcpListener = ln
-	// TODO 创建一个存储客户端会话的容器
-	s.sessions = memery.New()
+
+	s.sessions = sessionStore
 
 }
 func (s *server) handleGoroutineErr(err error) (isErr bool) {

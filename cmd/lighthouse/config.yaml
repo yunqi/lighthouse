@@ -4,3 +4,8 @@ log:
   level: debug
   format: json
   filename: log.log
+persistence:
+  queue:
+    type:
+  session:
+    type:

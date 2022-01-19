@@ -8,6 +8,7 @@ import (
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"gopkg.in/yaml.v3"
 	"net/http"
+	_ "net/http/pprof"
 )
 
 //go:embed config.yaml
