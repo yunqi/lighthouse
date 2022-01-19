@@ -11,7 +11,7 @@ type Log struct {
 	// Filename is the file to write logs to.  Backup log files will be retained
 	// in the same directory.  It uses <processname>-lumberjack.log in
 	// os.TempDir() if empty.
-	Filename string `json:"filename" yaml:"filename" validate:"isdefault=log.log"`
+	Filename string `json:"filename" yaml:"filename"`
 
 	// MaxSize is the maximum size in megabytes of the log file before it gets
 	// rotated. It defaults to 100 megabytes.

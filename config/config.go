@@ -20,25 +20,10 @@ import (
 	"time"
 )
 
-type Configuration interface {
-	// Validate validates the configuration.
-	// If returns error, the broker will not start.
-	Validate() error
-	// Unmarshaler defined how to unmarshal YAML into the config structure.
-	//yaml.Unmarshaler
-}
 type Config struct {
 	Mqtt Mqtt `yaml:"mqtt"`
 	Log  Log  `yaml:"log"`
 }
-
-func (c *Config) Validate() error {
-	panic("implement me")
-}
-
-//func (c *Config) UnmarshalYAML(value *yaml.Node) error {
-//	return nil
-//}
 
 type Mqtt struct {
 	// SessionExpiry is the maximum session expiry interval in seconds.

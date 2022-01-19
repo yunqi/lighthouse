@@ -32,6 +32,11 @@ func LoggerWithField(fields ...zap.Field) *zap.Logger {
 	return logger.With(fields...)
 }
 
+// LoggerModule release fields to a new logger.
+// Plugins can use this method to release plugin name field.
+func LoggerModule(moduleName string) *zap.Logger {
+	return logger.With(zap.String("moduleName", moduleName))
+}
 func InitLogger(c *config.Log) (err error) {
 	var logLevel zapcore.Level
 	err = logLevel.UnmarshalText([]byte(c.Level))
