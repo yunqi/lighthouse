@@ -29,6 +29,7 @@ type Configuration interface {
 }
 type Config struct {
 	Mqtt Mqtt `yaml:"mqtt"`
+	Log  Log  `yaml:"log"`
 }
 
 func (c *Config) Validate() error {
