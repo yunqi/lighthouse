@@ -19,7 +19,8 @@ package server
 import (
 	"context"
 	"github.com/gorilla/websocket"
-	"github.com/panjf2000/ants/v2"
+	"github.com/yunqi/lighthouse/internal/goroutine"
+	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"go.uber.org/zap"
