@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/chenquan/go-pkg/xio"
 	"github.com/yunqi/lighthouse/internal/code"
+	"github.com/yunqi/lighthouse/internal/goroutine"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"github.com/yunqi/lighthouse/internal/persistence/queue"
@@ -160,7 +161,7 @@ func (c *client) Connection() net.Conn {
 
 func (c *client) Close() error {
 	defer func() {
-		zap.L().Debug("关闭客户端")
+		c.log.Debug("关闭客户端")
 	}()
 	if c.clientConn != nil {
 		return c.clientConn.Close()
@@ -196,23 +197,23 @@ func newClient(server *server, conn net.Conn) *client {
 		out:          make(chan packet.Packet, 8),
 		closed:       make(chan struct{}),
 		connected:    make(chan struct{}),
-		log:          xlog.LoggerWithField(zap.String("name", "client")),
+		log:          xlog.LoggerModule("client"),
 	}
 	return c
 }
 
 func (c *client) listen() {
-	zap.L().Info("监听该连接")
+	c.log.Info("监听该连接")
 	readWg := sync.WaitGroup{}
 	readWg.Add(1)
-	_ = poolGo.Submit(func() {
+	goroutine.Go(func() {
 		//read conn
 		defer readWg.Done()
 		c.readConn()
 	})
 
 	c.wg.Add(1)
-	_ = poolGo.Submit(func() {
+	goroutine.Go(func() {
 		defer c.wg.Done()
 		c.writeConn()
 	})
@@ -222,13 +223,13 @@ func (c *client) listen() {
 
 		// 拉取消息
 		c.wg.Add(1)
-		_ = poolGo.Submit(func() {
+		goroutine.Go(func() {
 			c.pollMessageHandler()
 			c.wg.Done()
 		})
 
 		c.wg.Add(1)
-		_ = poolGo.Submit(func() {
+		goroutine.Go(func() {
 			defer c.wg.Done()
 			c.handleConn()
 		})
@@ -265,20 +266,20 @@ func (c *client) readConn() {
 		p, err := c.packetReader.Read()
 		if err != nil {
 			if err != io.EOF && p != nil {
-				zap.L().Error("read error", zap.String("packet_type", reflect.TypeOf(p).String()))
+				c.log.Error("read error", zap.String("packet_type", reflect.TypeOf(p).String()))
 			}
 			select {
 			case <-c.closed:
-				zap.L().Debug("客户端退出，关闭连接")
+				c.log.Debug("客户端退出，关闭连接")
 			default:
-				zap.L().Debug("连接超时，自动关闭")
+				c.log.Debug("连接超时，自动关闭")
 			}
 			return
 		}
 		if connect, ok := p.(*packet.Connect); ok {
-			zap.L().Debug("接收认证信息", zap.String("ClientId", string(connect.ClientId)))
+			c.log.Debug("接收认证信息", zap.String("ClientId", string(connect.ClientId)))
 		} else {
-			zap.L().Debug("Rec data", zap.String("packet", p.String()))
+			c.log.Debug("Rec data", zap.String("packet", p.String()))
 		}
 		c.in <- p
 
@@ -293,13 +294,13 @@ func (c *client) writeConn() {
 	defer func() {
 	}()
 	for p := range c.out {
-		zap.L().Debug("Ret data", zap.String("packet", p.String()))
+		c.log.Debug("Ret data", zap.String("packet", p.String()))
 		err := c.packetWriter.WritePacketAndFlush(p)
 		if err != nil {
 			return
 		}
 	}
-	zap.L().Debug("写入操作退出")
+	c.log.Debug("写入操作退出")
 
 }
 func (c *client) write(packet packet.Packet) {
@@ -322,7 +323,7 @@ func (c *client) connection() (ok bool) {
 	for {
 		select {
 		case p := <-c.in:
-			//zap.L().Debug("从in通道中读出数据", zap.Any("packet", p))
+			//c.log.Debug("从in通道中读出数据", zap.Any("packet", p))
 			if p == nil {
 				return
 			}
@@ -351,7 +352,7 @@ func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
 	var connack *packet.Connack
 	connack = conn.NewConnackPacket(code.Success, true)
 	c.clientId = string(conn.ClientId)
-	zap.L().Debug("认证成功", zap.String("clientId", c.clientId))
+	c.log.Debug("认证成功", zap.String("clientId", c.clientId))
 
 	c.status = Connected
 	var msg *message.Message
@@ -431,7 +432,7 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 
 	//msg := message.FromPublish(publish)
 	var ackPacket packet.Packet
-	//zap.L().Debug("msg", zap.Any("msg", msg))
+	//c.log.Debug("msg", zap.Any("msg", msg))
 	switch publish.QoS {
 	case packet.QoS1:
 		ackPacket = publish.CreatePuback()
@@ -441,7 +442,7 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 
 	if ackPacket != nil {
 		// 返回响应
-		//zap.L().Debug("返回响应", zap.Any("packet", ackPacket))
+		//c.log.Debug("返回响应", zap.Any("packet", ackPacket))
 		c.write(ackPacket)
 	}
 

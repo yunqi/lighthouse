@@ -18,9 +18,8 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/panjf2000/ants/v2"
+	"github.com/yunqi/lighthouse/internal/goroutine"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/persistence/session/memery"
 	"github.com/yunqi/lighthouse/internal/xlog"
@@ -29,8 +28,6 @@ import (
 	"os"
 	"time"
 )
-
-var poolGo, _ = ants.NewPool(-1)
 
 type (
 	Server interface {
@@ -69,7 +66,7 @@ func NewServer(opts ...Option) *server {
 	options := loadServerOptions(opts...)
 	s := &server{}
 	s.init(options)
-	s.log = xlog.LoggerWithField()
+	s.log = xlog.LoggerModule("server")
 	return s
 }
 func loadServerOptions(opts ...Option) *Options {
@@ -112,15 +109,11 @@ func (s *server) ServeTCP() {
 		// 创建一个客户端连接
 
 		c := newClient(s, accept)
-		s.log.Debug("创建一个新的客户端连接")
+		s.log.Debug("create a new client connection", zap.Any("IP", accept.RemoteAddr()))
 		// 监听该连接
-		err = poolGo.Submit(func() {
+		goroutine.Go(func() {
 			c.listen()
 		})
-		if err != nil {
-			s.log.Error("资源耗尽", zap.Error(err))
-			continue
-		}
 
 	}
 }
@@ -131,7 +124,7 @@ func (s *server) init(opts *Options) {
 
 	ln, err := net.Listen("tcp", s.tcpListen)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		s.log.Panic("", zap.Error(err))
 		os.Exit(1)
 	}
 	s.tcpListener = ln

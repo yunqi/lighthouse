@@ -3,4 +3,4 @@ mqtt:
 log:
   level: debug
   format: json
-#  filename: ./log.log
+  filename: log.log
