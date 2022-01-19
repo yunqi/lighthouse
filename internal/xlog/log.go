@@ -31,6 +31,7 @@ var logger = zap.NewNop()
 func LoggerModule(moduleName string) *zap.Logger {
 	return logger.With(zap.String("moduleName", moduleName))
 }
+
 func InitLogger(c *config.Log) (err error) {
 	var logLevel zapcore.Level
 	err = logLevel.UnmarshalText([]byte(c.Level))

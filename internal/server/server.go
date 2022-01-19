@@ -19,8 +19,7 @@ package server
 import (
 	"context"
 	"github.com/gorilla/websocket"
-	"github.com/yunqi/lighthouse/internal/goroutine"
-	"github.com/yunqi/lighthouse/internal/persistence"
+	"github.com/panjf2000/ants/v2"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"go.uber.org/zap"
@@ -66,6 +65,7 @@ func NewServer(opts ...Option) *server {
 	options := loadServerOptions(opts...)
 	s := &server{}
 	s.init(options)
+	s.log = xlog.LoggerModule("server")
 	return s
 }
 func loadServerOptions(opts ...Option) *Options {
