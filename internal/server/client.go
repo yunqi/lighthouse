@@ -27,6 +27,7 @@ import (
 	"github.com/yunqi/lighthouse/internal/persistence/queue"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/xerror"
+	"github.com/yunqi/lighthouse/internal/xlog"
 	"go.uber.org/zap"
 	"io"
 	"net"
@@ -125,6 +126,7 @@ type (
 		wg            sync.WaitGroup
 		queueStore    queue.Queue
 		limit         *packetIdLimiter
+		log           *zap.Logger
 	}
 )
 
@@ -194,52 +196,42 @@ func newClient(server *server, conn net.Conn) *client {
 		out:          make(chan packet.Packet, 8),
 		closed:       make(chan struct{}),
 		connected:    make(chan struct{}),
+		log:          xlog.LoggerWithField(zap.String("name", "client")),
 	}
 	return c
 }
 
 func (c *client) listen() {
-	var err error
 	zap.L().Info("监听该连接")
 	readWg := sync.WaitGroup{}
 	readWg.Add(1)
-	err = poolGo.Submit(func() {
+	_ = poolGo.Submit(func() {
 		//read conn
 		defer readWg.Done()
 		c.readConn()
 	})
-	if handleGoroutineErr(err) {
-		return
-	}
 
 	c.wg.Add(1)
-	err = poolGo.Submit(func() {
+	_ = poolGo.Submit(func() {
 		defer c.wg.Done()
 		c.writeConn()
 	})
-	if handleGoroutineErr(err) {
-		return
-	}
+
 	if ok := c.connection(); ok {
 		// 认证成功
 
 		// 拉取消息
 		c.wg.Add(1)
-		err := poolGo.Submit(func() {
+		_ = poolGo.Submit(func() {
 			c.pollMessageHandler()
 			c.wg.Done()
 		})
-		if handleGoroutineErr(err) {
-			return
-		}
+
 		c.wg.Add(1)
-		err = poolGo.Submit(func() {
+		_ = poolGo.Submit(func() {
 			defer c.wg.Done()
 			c.handleConn()
 		})
-		if handleGoroutineErr(err) {
-			return
-		}
 
 	}
 

@@ -1,0 +1,6 @@
+mqtt:
+  session_expiry: 1h
+log:
+  level: debug
+  format: json
+#  filename: ./log.log
