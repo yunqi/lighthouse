@@ -1,7 +1,7 @@
 package memory
 
 import (
-	"github.com/yunqi/lighthouse/internal/pkg/packets"
+	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/subscription"
 	"testing"
 
@@ -32,30 +32,30 @@ var testTopicMatch = []struct {
 }
 
 var topicMatchQosTest = []struct {
-	topics     []packets.Topic
+	topics     []packet.Topic
 	matchTopic struct {
 		name string // matched topic name
 		qos  uint8  // matched qos
 	}
 }{
 	{
-		topics: []packets.Topic{
+		topics: []packet.Topic{
 			{
-				SubOptions: packets.SubOptions{
-					Qos: packets.Qos1,
+				SubOptions: packet.SubOptions{
+					QoS: packet.QoS1,
 				},
 				Name: "a/b",
 			},
 			{
 				Name: "a/#",
-				SubOptions: packets.SubOptions{
-					Qos: packets.Qos2,
+				SubOptions: packet.SubOptions{
+					QoS: packet.QoS2,
 				},
 			},
 			{
 				Name: "a/+",
-				SubOptions: packets.SubOptions{
-					Qos: packets.Qos0,
+				SubOptions: packet.SubOptions{
+					QoS: packet.QoS0,
 				},
 			},
 		},
@@ -64,41 +64,41 @@ var topicMatchQosTest = []struct {
 			qos  uint8
 		}{
 			name: "a/b",
-			qos:  packets.Qos2,
+			qos:  packet.QoS2,
 		},
 	},
 }
 
 var testSubscribeAndFind = struct {
-	subTopics  map[string][]packets.Topic // subscription
-	findTopics map[string][]struct {      //key by clientID
+	subTopics  map[string][]packet.Topic // subscription
+	findTopics map[string][]struct {     //key by clientID
 		exist     bool
 		topicName string
 		wantQos   uint8
 	}
 }{
-	subTopics: map[string][]packets.Topic{
+	subTopics: map[string][]packet.Topic{
 		"cid1": {
 			{
-				SubOptions: packets.SubOptions{
-					Qos: packets.Qos1,
+				SubOptions: packet.SubOptions{
+					QoS: packet.QoS1,
 				}, Name: "t1/t2/+"},
-			{SubOptions: packets.SubOptions{
-				Qos: packets.Qos2,
+			{SubOptions: packet.SubOptions{
+				QoS: packet.QoS2,
 			}, Name: "t1/t2/"},
-			{SubOptions: packets.SubOptions{
-				Qos: packets.Qos0,
+			{SubOptions: packet.SubOptions{
+				QoS: packet.QoS0,
 			}, Name: "t1/t2/cid1"},
 		},
 		"cid2": {
-			{SubOptions: packets.SubOptions{
-				Qos: packets.Qos2,
+			{SubOptions: packet.SubOptions{
+				QoS: packet.QoS2,
 			}, Name: "t1/t2/+"},
-			{SubOptions: packets.SubOptions{
-				Qos: packets.Qos1,
+			{SubOptions: packet.SubOptions{
+				QoS: packet.QoS1,
 			}, Name: "t1/t2/"},
-			{SubOptions: packets.SubOptions{
-				Qos: packets.Qos0,
+			{SubOptions: packet.SubOptions{
+				QoS: packet.QoS0,
 			}, Name: "t1/t2/cid2"},
 		},
 	},
@@ -108,46 +108,46 @@ var testSubscribeAndFind = struct {
 		wantQos   uint8
 	}{
 		"cid1": {
-			{exist: true, topicName: "t1/t2/+", wantQos: packets.Qos1},
-			{exist: true, topicName: "t1/t2/", wantQos: packets.Qos2},
+			{exist: true, topicName: "t1/t2/+", wantQos: packet.QoS1},
+			{exist: true, topicName: "t1/t2/", wantQos: packet.QoS2},
 			{exist: false, topicName: "t1/t2/cid2"},
 			{exist: false, topicName: "t1/t2/cid3"},
 		},
 		"cid2": {
-			{exist: true, topicName: "t1/t2/+", wantQos: packets.Qos2},
-			{exist: true, topicName: "t1/t2/", wantQos: packets.Qos1},
+			{exist: true, topicName: "t1/t2/+", wantQos: packet.QoS2},
+			{exist: true, topicName: "t1/t2/", wantQos: packet.QoS1},
 			{exist: false, topicName: "t1/t2/cid1"},
 		},
 	},
 }
 
 var testUnsubscribe = struct {
-	subTopics   map[string][]packets.Topic //key by clientID
-	unsubscribe map[string][]string        // clientID => topic name
-	afterUnsub  map[string][]struct {      // test after unsubscribe, key by clientID
+	subTopics   map[string][]packet.Topic //key by clientID
+	unsubscribe map[string][]string       // clientID => topic name
+	afterUnsub  map[string][]struct {     // test after unsubscribe, key by clientID
 		exist     bool
 		topicName string
 		wantQos   uint8
 	}
 }{
-	subTopics: map[string][]packets.Topic{
+	subTopics: map[string][]packet.Topic{
 		"cid1": {
-			{SubOptions: packets.SubOptions{
-				Qos: packets.Qos1,
+			{SubOptions: packet.SubOptions{
+				QoS: packet.QoS1,
 			}, Name: "t1/t2/t3"},
-			{SubOptions: packets.SubOptions{
-				Qos: packets.Qos2,
+			{SubOptions: packet.SubOptions{
+				QoS: packet.QoS2,
 			}, Name: "t1/t2"},
 		},
 		"cid2": {
 			{
-				SubOptions: packets.SubOptions{
-					Qos: packets.Qos2,
+				SubOptions: packet.SubOptions{
+					QoS: packet.QoS2,
 				},
 				Name: "t1/t2/t3"},
 			{
-				SubOptions: packets.SubOptions{
-					Qos: packets.Qos1,
+				SubOptions: packet.SubOptions{
+					QoS: packet.QoS1,
 				}, Name: "t1/t2"},
 		},
 	},
@@ -162,35 +162,35 @@ var testUnsubscribe = struct {
 	}{
 		"cid1": {
 			{exist: false, topicName: "t1/t2/t3"},
-			{exist: true, topicName: "t1/t2", wantQos: packets.Qos2},
+			{exist: true, topicName: "t1/t2", wantQos: packet.QoS2},
 		},
 		"cid2": {
 			{exist: false, topicName: "t1/t2/+"},
-			{exist: true, topicName: "t1/t2", wantQos: packets.Qos1},
+			{exist: true, topicName: "t1/t2", wantQos: packet.QoS1},
 		},
 	},
 }
 
 var testPreOrderTraverse = struct {
-	topics   []packets.Topic
+	topics   []packet.Topic
 	clientID string
 }{
-	topics: []packets.Topic{
+	topics: []packet.Topic{
 		{
-			SubOptions: packets.SubOptions{
-				Qos: packets.Qos0,
+			SubOptions: packet.SubOptions{
+				QoS: packet.QoS0,
 			},
 			Name: "a/b/c",
 		},
 		{
-			SubOptions: packets.SubOptions{
-				Qos: packets.Qos1,
+			SubOptions: packet.SubOptions{
+				QoS: packet.QoS1,
 			},
 			Name: "/a/b/c",
 		},
 		{
-			SubOptions: packets.SubOptions{
-				Qos: packets.Qos2,
+			SubOptions: packet.SubOptions{
+				QoS: packet.QoS2,
 			},
 			Name: "b/c/d",
 		},
@@ -222,7 +222,7 @@ func TestTopicTrie_matchedClients_Qos(t *testing.T) {
 		for _, tt := range v.topics {
 			trie.subscribe("cid", &subscription.Subscription{
 				TopicFilter: tt.Name,
-				QoS:         tt.Qos,
+				QoS:         tt.QoS,
 			})
 		}
 		rs := trie.getMatchedTopicFilter(v.matchTopic.name)
@@ -237,7 +237,7 @@ func TestTopicTrie_subscribeAndFind(t *testing.T) {
 		for _, topic := range v {
 			trie.subscribe(cid, &subscription.Subscription{
 				TopicFilter: topic.Name,
-				QoS:         topic.Qos,
+				QoS:         topic.QoS,
 			})
 		}
 	}
@@ -263,7 +263,7 @@ func TestTopicTrie_unsubscribe(t *testing.T) {
 		for _, topic := range v {
 			trie.subscribe(cid, &subscription.Subscription{
 				TopicFilter: topic.Name,
-				QoS:         topic.Qos,
+				QoS:         topic.QoS,
 			})
 		}
 	}
@@ -290,15 +290,15 @@ func TestTopicTrie_preOrderTraverse(t *testing.T) {
 	for _, v := range testPreOrderTraverse.topics {
 		trie.subscribe(testPreOrderTraverse.clientID, &subscription.Subscription{
 			TopicFilter: v.Name,
-			QoS:         v.Qos,
+			QoS:         v.QoS,
 		})
 	}
-	var rs []packets.Topic
+	var rs []packet.Topic
 	trie.preOrderTraverse(func(clientID string, subscription *subscription.Subscription) bool {
 		a.Equal(testPreOrderTraverse.clientID, clientID)
-		rs = append(rs, packets.Topic{
-			SubOptions: packets.SubOptions{
-				Qos: subscription.QoS,
+		rs = append(rs, packet.Topic{
+			SubOptions: packet.SubOptions{
+				QoS: subscription.QoS,
 			},
 			Name: subscription.TopicFilter,
 		})

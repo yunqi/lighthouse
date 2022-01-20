@@ -19,6 +19,7 @@ package server
 import (
 	"context"
 	"github.com/gorilla/websocket"
+	"github.com/yunqi/lighthouse/config"
 	"github.com/yunqi/lighthouse/internal/goroutine"
 	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
@@ -36,10 +37,9 @@ type (
 	Option func(server *Options)
 
 	Options struct {
-		tcpListen        string
-		websocketListen  string
-		sessionStoreType string
-		queueStoreType   string
+		tcpListen       string
+		websocketListen string
+		persistence     *config.Persistence
 	}
 	server struct {
 		tcpListen         string
@@ -56,6 +56,12 @@ func WithTcpListen(tcpListen string) Option {
 		opts.tcpListen = tcpListen
 	}
 }
+func WithPersistence(persistence *config.Persistence) Option {
+	return func(opts *Options) {
+		opts.persistence = persistence
+	}
+}
+
 func WithWebsocketListen(websocketListen string) Option {
 	return func(opts *Options) {
 		opts.websocketListen = websocketListen
@@ -123,24 +129,23 @@ func (s *server) init(opts *Options) {
 	s.websocketListen = opts.websocketListen
 	s.log = xlog.LoggerModule("server")
 
-	sessionStore, ok := persistence.GetSessionStore(opts.sessionStoreType)
+	sessionStore, ok := persistence.GetSessionStore(opts.persistence.Session.Type)
 	if !ok {
-		s.log.Panic("start tcp error", zap.String("tcp", s.tcpListen))
+		s.log.Panic("invalid session store")
+	}
+
+	if store, err := sessionStore(&opts.persistence.Session); err != nil {
+		s.log.Panic("session store", zap.Error(err))
+	} else {
+		s.sessions = store
+		s.log.Info("session store", zap.String("type", opts.persistence.Session.Type))
 	}
 
 	ln, err := net.Listen("tcp", s.tcpListen)
 	if err != nil {
 		s.log.Panic("start tcp error", zap.String("tcp", s.tcpListen), zap.Error(err))
 	}
+	s.log.Info("start tcp", zap.String("TCP", s.tcpListen))
 	s.tcpListener = ln
 
-	s.sessions = sessionStore
-
-}
-func (s *server) handleGoroutineErr(err error) (isErr bool) {
-	if err != nil {
-		s.log.Error("资源耗尽", zap.Error(err))
-		return true
-	}
-	return false
 }

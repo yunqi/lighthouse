@@ -11,7 +11,7 @@ import (
 
 const (
 	NodeType    = "ClusterType"
-	ClusterType = "NodeType"
+	ClusterType = "Type"
 )
 
 type (
@@ -44,6 +44,18 @@ func (r Type) String() string {
 	return string(r)
 }
 
+func WithNodeType() Option {
+	return func(opt *option) {
+		opt.Type = NodeType
+	}
+}
+
+func WithClusterType() Option {
+	return func(opt *option) {
+		opt.Type = ClusterType
+	}
+}
+
 // New returns a Redis with given options.
 func New(addr string, opts ...Option) *Redis {
 	_option := new(option)
@@ -55,8 +67,7 @@ func New(addr string, opts ...Option) *Redis {
 	}
 
 	r := &Redis{
-		addr: addr,
-
+		addr:   addr,
 		option: _option,
 		brk:    breaker.NewBreaker(addr),
 	}

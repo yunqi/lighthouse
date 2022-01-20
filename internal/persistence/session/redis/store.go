@@ -2,6 +2,8 @@ package redis
 
 import (
 	"bytes"
+	"github.com/yunqi/lighthouse/config"
+	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/message/binary"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	red "github.com/yunqi/lighthouse/internal/redis"
@@ -17,14 +19,27 @@ const (
 
 var _ session.Store = (*Store)(nil)
 
+func init() {
+	persistence.RegisterSessionStore("redis", New())
+}
+
 type Store struct {
 	mu sync.RWMutex
 	r  *red.Redis
 }
 
-func New(r *red.Redis) *Store {
-	return &Store{
-		r: r,
+func New() session.NewStore {
+	return func(config *config.StoreType) (session.Store, error) {
+		var opts []red.Option
+		switch config.Type {
+		case red.NodeType:
+			opts = append(opts, red.WithNodeType())
+		case red.ClusterType:
+			opts = append(opts, red.WithClusterType())
+		}
+		return &Store{
+			r: red.New(config.Redis.Addr, opts...),
+		}, nil
 	}
 }
 
@@ -38,8 +53,8 @@ func (s *Store) Set(session *sess.Session) error {
 	b := &bytes.Buffer{}
 	binary.EncodeMessage(session.Will, b)
 
-	err := s.r.Hmset(getKey(session.ClientID), map[string]interface{}{
-		"client_id":           session.ClientID,
+	err := s.r.Hmset(getKey(session.ClientId), map[string]interface{}{
+		"client_id":           session.ClientId,
 		"will":                b.Bytes(),
 		"will_delay_interval": session.WillDelayInterval,
 		"connected_at":        session.ConnectedAt.Unix(),
@@ -74,7 +89,7 @@ func (s *Store) getSessionLocked(key string) (*sess.Session, error) {
 
 	_sess := &sess.Session{}
 	if m[0] != nil {
-		_sess.ClientID = m[0].(string)
+		_sess.ClientId = m[0].(string)
 	}
 	if m[1] != nil {
 		_sess.Will, err = binary.DecodeMessageFromBytes([]byte(m[1].(string)))

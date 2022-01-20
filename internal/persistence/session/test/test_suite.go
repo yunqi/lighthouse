@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/yunqi/lighthouse/internal/message"
+	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	session2 "github.com/yunqi/lighthouse/internal/session"
 	"testing"
@@ -17,7 +17,7 @@ func TestSuite(t *testing.T, store session.Store) {
 	defer ctrl.Finish()
 	var tt = []*session2.Session{
 		{
-			ClientID: "client",
+			ClientId: "client",
 			Will: &message.Message{
 				Topic:   "topicA",
 				Payload: []byte("abc"),
@@ -26,7 +26,7 @@ func TestSuite(t *testing.T, store session.Store) {
 			ConnectedAt:       time.Unix(1, 0),
 			ExpiryInterval:    2,
 		}, {
-			ClientID:          "client2",
+			ClientId:          "client2",
 			Will:              nil,
 			WillDelayInterval: 0,
 			ConnectedAt:       time.Unix(2, 0),
@@ -37,7 +37,7 @@ func TestSuite(t *testing.T, store session.Store) {
 		a.Nil(store.Set(v))
 	}
 	for _, v := range tt {
-		sess, err := store.Get(v.ClientID)
+		sess, err := store.Get(v.ClientId)
 		a.Nil(err)
 		a.EqualValues(v, sess)
 	}

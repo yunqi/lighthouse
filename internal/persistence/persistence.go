@@ -17,27 +17,27 @@
 package persistence
 
 import (
-	"github.com/yunqi/lighthouse/internal/persistence/queue"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 )
 
 var (
-	sessionStores = map[string]session.Store{}
-	queueStores   = map[string]queue.Store{}
+	sessionStores = map[string]session.NewStore{}
+	//queueStores   = map[string]SessionPersistence{}
 )
 
-func RegisterSessionStore(name string, store session.Store) {
+func RegisterSessionStore(name string, store session.NewStore) {
 	sessionStores[name] = store
 }
-func GetSessionStore(name string) (store session.Store, ok bool) {
+func GetSessionStore(name string) (store session.NewStore, ok bool) {
 	s, ok := sessionStores[name]
 	return s, ok
 }
 
-func RegisterQueueStore(name string, store queue.Store) {
-	queueStores[name] = store
-}
-func GetQueueStore(name string) (store queue.Store, ok bool) {
-	s, ok := queueStores[name]
-	return s, ok
-}
+//
+//func RegisterQueueStore(name string, store queue.Store) {
+//	queueStores[name] = store
+//}
+//func GetQueueStore(name string) (store queue.Store, ok bool) {
+//	s, ok := queueStores[name]
+//	return s, ok
+//}

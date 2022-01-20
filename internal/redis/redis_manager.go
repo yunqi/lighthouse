@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"github.com/chenquan/go-pkg/xsync"
 	"github.com/go-redis/redis/v8"
-	"github.com/yunqi/lighthouse/internal/server"
+	"github.com/yunqi/lighthouse/internal/xlog"
 	"go.uber.org/zap"
 	"io"
 	"time"
@@ -29,7 +29,7 @@ type Hook struct {
 func newHook(slowTime time.Duration) *Hook {
 	return &Hook{
 		slowTime: slowTime,
-		log:      server.LoggerWithField(zap.String("stat", "redis")),
+		log:      xlog.LoggerModule("redis"),
 	}
 }
 

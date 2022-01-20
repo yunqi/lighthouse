@@ -21,8 +21,9 @@ import (
 )
 
 type Config struct {
-	Mqtt Mqtt `yaml:"mqtt"`
-	Log  Log  `yaml:"log"`
+	Mqtt        Mqtt        `yaml:"mqtt"`
+	Log         Log         `yaml:"log"`
+	Persistence Persistence `yaml:"persistence"`
 }
 
 type Mqtt struct {

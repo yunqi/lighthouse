@@ -372,7 +372,7 @@ func testIterateNonShared(t *testing.T, store subscription.Store) {
 	a.ElementsMatch([]*subscription2.Subscription{topicA, topicB}, got["client1"])
 	a.ElementsMatch([]*subscription2.Subscription{topicA, topicB}, got["client2"])
 
-	// iterate all non-shared subscriptions with ClientID option.
+	// iterate all non-shared subscriptions with ClientId option.
 	got = make(subscription.ClientSubscriptions)
 	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
@@ -452,7 +452,7 @@ func testIterateShared(t *testing.T, store subscription.Store) {
 	a.ElementsMatch([]*subscription2.Subscription{sharedTopicA1, sharedTopicA2, sharedTopicB1, sharedTopicB2}, got["client1"])
 	a.ElementsMatch([]*subscription2.Subscription{sharedTopicA1, sharedTopicA2, sharedTopicB1, sharedTopicB2}, got["client2"])
 
-	// iterate all shared subscriptions with ClientID option.
+	// iterate all shared subscriptions with ClientId option.
 	got = make(subscription.ClientSubscriptions)
 	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
@@ -532,7 +532,7 @@ func testIterateSystem(t *testing.T, store subscription.Store) {
 	a.ElementsMatch([]*subscription2.Subscription{systemTopicA, systemTopicB}, got["client1"])
 	a.ElementsMatch([]*subscription2.Subscription{systemTopicA, systemTopicB}, got["client2"])
 
-	// iterate all system subscriptions with ClientID option.
+	// iterate all system subscriptions with ClientId option.
 	got = make(subscription.ClientSubscriptions)
 	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)

@@ -2,6 +2,8 @@ package memory
 
 import (
 	"github.com/chenquan/go-pkg/xsync"
+	"github.com/yunqi/lighthouse/config"
+	"github.com/yunqi/lighthouse/internal/persistence"
 
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	sess "github.com/yunqi/lighthouse/internal/session"
@@ -9,9 +11,14 @@ import (
 
 var _ session.Store = (*Store)(nil)
 
-func New() *Store {
-	return &Store{
-		m: xsync.NewSharedMap(xsync.WithShardBlockSize(64)),
+func init() {
+	persistence.RegisterSessionStore("memory", New())
+}
+func New() session.NewStore {
+	return func(config *config.StoreType) (session.Store, error) {
+		return &Store{
+			m: xsync.NewSharedMap(xsync.WithShardBlockSize(64)),
+		}, nil
 	}
 }
 
@@ -21,7 +28,7 @@ type Store struct {
 
 func (s *Store) Set(session *sess.Session) error {
 
-	s.m.Store(session.ClientID, session)
+	s.m.Store(session.ClientId, session)
 	return nil
 }
 

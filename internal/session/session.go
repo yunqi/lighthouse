@@ -7,8 +7,8 @@ import (
 
 // Session represents a MQTT session.
 type Session struct {
-	// ClientID represents the client id.
-	ClientID string
+	// ClientId represents the client id.
+	ClientId string
 	// Will is the will message of the client, can be nil if there is no will message.
 	Will *message.Message
 	// WillDelayInterval represents the Will Delay Interval in seconds
