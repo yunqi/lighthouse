@@ -380,3 +380,36 @@ func encode(fixedHeader *FixedHeader, readBuf *bytes.Buffer, w io.Writer) (err e
 	_, err = readBuf.WriteTo(w)
 	return err
 }
+
+// ValidV5Topic returns whether the given bytes is a valid MQTT V5 topic
+func ValidV5Topic(p []byte) bool {
+	if len(p) == 0 {
+		return false
+	}
+	if bytes.HasPrefix(p, []byte("$share/")) {
+		if len(p) < 9 {
+			return false
+		}
+		if p[7] != '/' {
+			subp := p[7:]
+			for len(subp) > 0 {
+				ru, size := utf8.DecodeRune(subp)
+				if ru == utf8.RuneError {
+					return false
+				}
+				if size == 1 {
+					if subp[0] == '/' {
+						return ValidTopicFilter(true, subp[1:])
+					}
+					if subp[0] == byte('+') || subp[0] == byte('#') {
+						return false
+					}
+				}
+				subp = subp[size:]
+			}
+
+		}
+		return false
+	}
+	return ValidTopicFilter(true, p)
+}

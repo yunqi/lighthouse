@@ -17,7 +17,6 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/chenquan/go-pkg/xio"
@@ -26,7 +25,7 @@ import (
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"github.com/yunqi/lighthouse/internal/persistence/queue"
-	"github.com/yunqi/lighthouse/internal/persistence/session"
+	"github.com/yunqi/lighthouse/internal/session"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"go.uber.org/zap"
@@ -380,7 +379,7 @@ func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
 		ExpiryInterval:    0,
 	}
 	// client session
-	_ = c.server.sessions.Set(context.Background(), c.session)
+	_ = c.server.sessions.Set(c.session)
 	c.version = conn.Version
 	c.opt = &ClientOption{
 		ClientId:  c.clientId,

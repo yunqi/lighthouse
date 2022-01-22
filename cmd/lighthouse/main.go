@@ -4,10 +4,13 @@ import (
 	_ "embed"
 	"github.com/go-playground/validator/v10"
 	"github.com/yunqi/lighthouse/config"
+	_ "github.com/yunqi/lighthouse/internal/persistence/session/memory"
+	_ "github.com/yunqi/lighthouse/internal/persistence/session/redis"
 	"github.com/yunqi/lighthouse/internal/server"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"gopkg.in/yaml.v3"
 	"net/http"
+	_ "net/http/pprof"
 )
 
 //go:embed config.yaml
@@ -30,9 +33,9 @@ func main() {
 		panic(err)
 	}
 	go func() {
-		http.ListenAndServe("localhost:6060", nil)
+		_ = http.ListenAndServe("localhost:6060", nil)
 	}()
 
-	newServer := server.NewServer(server.WithTcpListen(":1883"))
+	newServer := server.NewServer(server.WithTcpListen(":1883"), server.WithPersistence(&c.Persistence))
 	newServer.ServeTCP()
 }
