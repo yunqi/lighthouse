@@ -17,7 +17,9 @@
 package xlog
 
 import (
+	"context"
 	"github.com/yunqi/lighthouse/config"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -25,11 +27,53 @@ import (
 )
 
 var logger = zap.NewNop()
+var Info = logger.Info
+var Panic = logger.Panic
+var Error = logger.Error
+var Warn = logger.Warn
+var Debug = logger.Debug
+var Fatal = logger.Fatal
+
+const TraceName = "lighthouse"
 
 // LoggerModule release fields to a new logger.
 // Plugins can use this method to release plugin name field.
 func LoggerModule(moduleName string) *zap.Logger {
-	return logger.With(zap.String("moduleName", moduleName))
+
+	return logger.With(
+		zap.String("moduleName", moduleName),
+	)
+}
+
+// LoggerWithContext release fields to a new logger.
+// Plugins can use this method to release plugin name field.
+func LoggerWithContext(ctx context.Context, moduleName string) *zap.Logger {
+	spanId := spanIdFromContext(ctx)
+	straceId := traceIdFromContext(ctx)
+
+	return logger.With(
+		zap.String("moduleName", moduleName),
+		zap.String("traceId", straceId),
+		zap.String("spanId", spanId),
+	)
+}
+
+func spanIdFromContext(ctx context.Context) string {
+	spanCtx := trace.SpanContextFromContext(ctx)
+	if spanCtx.HasSpanID() {
+		return spanCtx.SpanID().String()
+	}
+
+	return ""
+}
+
+func traceIdFromContext(ctx context.Context) string {
+	spanCtx := trace.SpanContextFromContext(ctx)
+	if spanCtx.HasTraceID() {
+		return spanCtx.TraceID().String()
+	}
+
+	return ""
 }
 
 func InitLogger(c *config.Log) (err error) {

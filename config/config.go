@@ -24,6 +24,7 @@ type Config struct {
 	Mqtt        Mqtt        `yaml:"mqtt"`
 	Log         Log         `yaml:"log"`
 	Persistence Persistence `yaml:"persistence"`
+	Trace       Trace       `yaml:"trace"`
 }
 
 type Mqtt struct {

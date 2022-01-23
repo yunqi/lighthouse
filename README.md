@@ -9,3 +9,7 @@ A high performance MQTT broker
 [![GitHub](https://img.shields.io/github/license/yunqi/lighthouse)](https://github.com/yunqi/lighthouse/blob/master/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/yunqi/lighthouse)](https://github.com/yunqi/lighthouse/stargazers)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/yunqi/lighthouse)](https://github.com/yunqi/lighthouse/pulls)
+
+```shell
+docker run -d   --rm   --name jaeger   -p6831:6831/udp   -p16686:16686   jaegertracing/all-in-one:1.30
+```

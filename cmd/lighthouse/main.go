@@ -8,6 +8,7 @@ import (
 	_ "github.com/yunqi/lighthouse/internal/persistence/session/redis"
 	"github.com/yunqi/lighthouse/internal/server"
 	"github.com/yunqi/lighthouse/internal/xlog"
+	"github.com/yunqi/lighthouse/internal/xtrace"
 	"gopkg.in/yaml.v3"
 	"net/http"
 	_ "net/http/pprof"
@@ -32,6 +33,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	xtrace.StartAgent(&c.Trace)
+
 	go func() {
 		_ = http.ListenAndServe("localhost:6060", nil)
 	}()

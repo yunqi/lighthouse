@@ -17,6 +17,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/chenquan/go-pkg/xio"
@@ -126,6 +127,7 @@ type (
 		wg            sync.WaitGroup
 		queueStore    queue.Queue
 		limit         *packetIdLimiter
+		ctx           context.Context
 		log           *zap.Logger
 	}
 )
@@ -183,6 +185,8 @@ func (c *client) Disconnect(disconnect *packet.Disconnect) {
 func newClient(server *server, conn net.Conn) *client {
 	reader := xio.GetBufferReaderSize(conn, 2048)
 	writer := xio.GetBufferWriterSize(conn, 2048)
+	ctx, span := server.tracer.Start(context.Background(), conn.RemoteAddr().String())
+	defer span.End()
 
 	c := &client{
 		server:       server,
@@ -196,7 +200,8 @@ func newClient(server *server, conn net.Conn) *client {
 		out:          make(chan packet.Packet, 8),
 		closed:       make(chan struct{}),
 		connected:    make(chan struct{}),
-		log:          xlog.LoggerModule("client"),
+		ctx:          ctx,
+		log:          xlog.LoggerWithContext(ctx, "client"),
 	}
 	return c
 }
@@ -549,4 +554,8 @@ func (c *client) pollInFlights() (bool, error) {
 
 func (c *client) newPacketIdLimiter(limit uint16) {
 	c.limit = newPacketIDLimiter(limit)
+}
+
+func (c *client) Context() context.Context {
+	return c.ctx
 }

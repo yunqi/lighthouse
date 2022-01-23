@@ -9,4 +9,8 @@ persistence:
     type: memory
   queue:
     type: memory
-
+trace:
+  name: lighthouse
+  endpoint: http://localhost:14268/api/traces
+  sampler: 1.0
+  batcher: jaeger
