@@ -18,14 +18,9 @@ import (
 
 const Name = "lighthouse"
 
-var (
-	propagator = otel.GetTextMapPropagator()
-	tracer     = otel.GetTracerProvider().Tracer(Name)
-)
-
 const (
-	kindJaeger = "jaeger"
-	kindZipkin = "zipkin"
+	Jaeger = "jaeger"
+	Zipkin = "zipkin"
 )
 
 var (
@@ -88,9 +83,9 @@ func startAgent(c *config.Trace) error {
 func createExporter(c *config.Trace) (sdktrace.SpanExporter, error) {
 	// Just support jaeger and zipkin now, more for later
 	switch c.Batcher {
-	case kindJaeger:
+	case Jaeger:
 		return jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(c.Endpoint)))
-	case kindZipkin:
+	case Zipkin:
 		return zipkin.New(c.Endpoint)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnknownExporter, c.Batcher)
