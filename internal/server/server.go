@@ -24,6 +24,9 @@ import (
 	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/xlog"
+	"github.com/yunqi/lighthouse/internal/xtrace"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"net"
 	"time"
@@ -48,6 +51,7 @@ type (
 		websocketListener *websocket.Conn
 		sessions          session.Store
 		log               *zap.Logger
+		tracer            trace.Tracer
 	}
 )
 
@@ -87,6 +91,9 @@ func loadServerOptions(opts ...Option) *Options {
 }
 
 func (s *server) ServeTCP() {
+	//propagator := otel.GetTextMapPropagator()
+	s.tracer = otel.GetTracerProvider().Tracer(xtrace.Name)
+
 	defer func() {
 		err := s.tcpListener.Close()
 		if err != nil {

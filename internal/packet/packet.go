@@ -168,6 +168,7 @@ type (
 		Decode(r io.Reader) (err error)
 		// String is mainly used in logging, debugging and testing.
 		String() string
+		//Context() context.Context
 	}
 )
 

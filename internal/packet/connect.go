@@ -18,6 +18,7 @@ package packet
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/yunqi/lighthouse/internal/code"
 	"github.com/yunqi/lighthouse/internal/xerror"
@@ -27,6 +28,8 @@ import (
 type (
 	// Connect represents the MQTT Connect packet.
 	Connect struct {
+		ctx context.Context
+
 		Version     Version
 		FixedHeader *FixedHeader
 
@@ -67,6 +70,10 @@ type (
 		UsernameFlag bool
 	}
 )
+
+func (c *Connect) Context() context.Context {
+	return c.ctx
+}
 
 // NewConnect returns a Connect instance by the given FixHeader and io.Reader
 func NewConnect(fixedHeader *FixedHeader, version Version, r io.Reader) (*Connect, error) {
