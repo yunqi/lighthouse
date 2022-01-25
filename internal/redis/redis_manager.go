@@ -22,7 +22,7 @@ var (
 )
 
 type Hook struct {
-	log      *zap.Logger
+	log      *xlog.Log
 	slowTime time.Duration
 }
 
