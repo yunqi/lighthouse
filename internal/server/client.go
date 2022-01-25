@@ -286,7 +286,7 @@ func (c *client) auth(ctx context.Context) bool {
 		return true
 	}
 
-	logger.Debug("invalid package", zap.Any("package", p))
+	logger.Debug("invalid package", zap.String("package", p.String()))
 	_ = c.Close()
 	logger.Debug("close connection", zap.String("IP", c.remoteAddr.String()))
 	return false
@@ -354,7 +354,7 @@ func (c *client) writeConn() {
 
 }
 func (c *client) write(ctx context.Context, packet packet.Packet) {
-	c.log.WithContext(ctx).Debug("write packet", zap.Any("packet", packet))
+	c.log.WithContext(ctx).Debug("write packet", zap.String("packet", packet.String()))
 	c.out <- packet
 }
 
@@ -490,7 +490,7 @@ func (c *client) getTraceLog(spanName string) (context.Context, trace.Span, *zap
 func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 	ctx, span, logger := c.getTraceLog("publish")
 	defer span.End()
-	logger.Debug("received publish packet", zap.Any("packet", publish))
+	logger.Debug("received publish packet", zap.String("packet", publish.String()))
 	//msg := message.FromPublish(publish)
 	var ackPacket packet.Packet
 	switch publish.QoS {
@@ -512,7 +512,7 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 func (c *client) handlePingreq(pingreq *packet.Pingreq) {
 	ctx, span, logger := c.getTraceLog("ping request")
 	defer span.End()
-	logger.Debug("received ping request packet", zap.Any("packet", pingreq))
+	logger.Debug("received ping request packet", zap.String("packet", pingreq.String()))
 	c.write(ctx, pingreq.CreatePingresp())
 }
 
@@ -520,7 +520,7 @@ func (c *client) handlePubrel(pubrel *packet.Pubrel) {
 	ctx, span, logger := c.getTraceLog("publish release")
 	defer span.End()
 
-	logger.Debug("received publish release packet", zap.Any("packet", pubrel))
+	logger.Debug("received publish release packet", zap.String("packet", pubrel.String()))
 	c.write(ctx, pubrel.CreatePubcomp())
 }
 
@@ -528,7 +528,7 @@ func (c *client) handleSubscribe(subscribe *packet.Subscribe) {
 	ctx, span, logger := c.getTraceLog("subscribe")
 	defer span.End()
 
-	logger.Debug("received subscribe packet", zap.Any("packet", subscribe))
+	logger.Debug("received subscribe packet", zap.String("packet", subscribe.String()))
 	c.write(ctx, &packet.Suback{
 		Version:  subscribe.Version,
 		PacketId: subscribe.PacketId,
@@ -539,7 +539,7 @@ func (c *client) handleSubscribe(subscribe *packet.Subscribe) {
 func (c *client) handleUnsubscribe(unsubscribe *packet.Unsubscribe) {
 	ctx, span, logger := c.getTraceLog("unsubscribe")
 	defer span.End()
-	logger.Debug("received unsubscribe packet", zap.Any("packet", unsubscribe))
+	logger.Debug("received unsubscribe packet", zap.String("packet", unsubscribe.String()))
 
 	c.write(ctx, &packet.Unsuback{
 		Version:  unsubscribe.Version,
