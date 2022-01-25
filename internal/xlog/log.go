@@ -36,23 +36,26 @@ var Fatal = logger.Fatal
 
 const TraceName = "lighthouse"
 
-// LoggerModule release fields to a new logger.
-// Plugins can use this method to release plugin name field.
-func LoggerModule(moduleName string) *zap.Logger {
-
-	return logger.With(
-		zap.String("moduleName", moduleName),
-	)
+type Log struct {
+	*zap.Logger
 }
 
-// LoggerWithContext release fields to a new logger.
+// LoggerModule release fields to a new logger.
 // Plugins can use this method to release plugin name field.
-func LoggerWithContext(ctx context.Context, moduleName string) *zap.Logger {
+func LoggerModule(moduleName string) *Log {
+
+	return &Log{
+		Logger: logger.With(zap.String("moduleName", moduleName)),
+	}
+}
+
+// WithContext release fields to a new logger.
+// Plugins can use this method to release plugin name field.
+func (l *Log) WithContext(ctx context.Context) *zap.Logger {
 	spanId := spanIdFromContext(ctx)
 	straceId := traceIdFromContext(ctx)
 
-	return logger.With(
-		zap.String("moduleName", moduleName),
+	return l.With(
 		zap.String("traceId", straceId),
 		zap.String("spanId", spanId),
 	)

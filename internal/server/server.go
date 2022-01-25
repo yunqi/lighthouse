@@ -50,7 +50,7 @@ type (
 		tcpListener       net.Listener //tcp listeners
 		websocketListener *websocket.Conn
 		sessions          session.Store
-		log               *zap.Logger
+		log               *xlog.Log
 		tracer            trace.Tracer
 	}
 )
@@ -122,7 +122,6 @@ func (s *server) ServeTCP() {
 		// 创建一个客户端连接
 
 		c := newClient(s, accept)
-		s.log.Debug("create a new client connection", zap.Any("IP", accept.RemoteAddr()))
 		// 监听该连接
 		goroutine.Go(func() {
 			c.listen()

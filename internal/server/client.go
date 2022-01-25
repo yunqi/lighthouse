@@ -29,6 +29,7 @@ import (
 	"github.com/yunqi/lighthouse/internal/session"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"github.com/yunqi/lighthouse/internal/xlog"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"io"
 	"net"
@@ -127,8 +128,9 @@ type (
 		wg            sync.WaitGroup
 		queueStore    queue.Queue
 		limit         *packetIdLimiter
-		ctx           context.Context
-		log           *zap.Logger
+		//ctx           context.Context
+		log        *xlog.Log
+		remoteAddr net.Addr
 	}
 )
 
@@ -185,9 +187,6 @@ func (c *client) Disconnect(disconnect *packet.Disconnect) {
 func newClient(server *server, conn net.Conn) *client {
 	reader := xio.GetBufferReaderSize(conn, 2048)
 	writer := xio.GetBufferWriterSize(conn, 2048)
-	ctx, span := server.tracer.Start(context.Background(), conn.RemoteAddr().String())
-	defer span.End()
-
 	c := &client{
 		server:       server,
 		clientConn:   conn,
@@ -200,14 +199,30 @@ func newClient(server *server, conn net.Conn) *client {
 		out:          make(chan packet.Packet, 8),
 		closed:       make(chan struct{}),
 		connected:    make(chan struct{}),
-		ctx:          ctx,
-		log:          xlog.LoggerWithContext(ctx, "client"),
+		log:          xlog.LoggerModule("client"),
+		remoteAddr:   conn.RemoteAddr(),
 	}
 	return c
 }
 
 func (c *client) listen() {
-	c.log.Info("监听该连接")
+	ctx, span := c.server.tracer.Start(context.Background(), "listen")
+	logger := c.log.WithContext(ctx)
+	logger.Debug("create a new client connection", zap.Any("IP", c.remoteAddr.String()))
+
+	c.wg.Add(1)
+	goroutine.Go(func() {
+		defer c.wg.Done()
+		c.writeConn()
+	})
+
+	// 认证
+	if !c.auth(ctx) {
+		span.End()
+		return
+	}
+	span.End()
+
 	readWg := sync.WaitGroup{}
 	readWg.Add(1)
 	goroutine.Go(func() {
@@ -216,34 +231,65 @@ func (c *client) listen() {
 		c.readConn()
 	})
 
+	// 拉取消息
+	c.wg.Add(1)
+	goroutine.Go(func() {
+		c.pollMessageHandler()
+		c.wg.Done()
+	})
+
 	c.wg.Add(1)
 	goroutine.Go(func() {
 		defer c.wg.Done()
-		c.writeConn()
+		c.handleConn()
 	})
-
-	if ok := c.connection(); ok {
-		// 认证成功
-
-		// 拉取消息
-		c.wg.Add(1)
-		goroutine.Go(func() {
-			c.pollMessageHandler()
-			c.wg.Done()
-		})
-
-		c.wg.Add(1)
-		goroutine.Go(func() {
-			defer c.wg.Done()
-			c.handleConn()
-		})
-
-	}
 
 	readWg.Wait()
 
 	c.wg.Wait()
 
+}
+
+func (c *client) auth(ctx context.Context) bool {
+	ctx, span := c.server.tracer.Start(ctx, "auth")
+	defer span.End()
+	logger := c.log.WithContext(ctx)
+
+	logger.Debug("开始认证")
+
+	var p packet.Packet
+	if c.IsConnected() {
+		if keepAlive := c.opt.KeepAlive; keepAlive != 0 { //KeepAlive
+			_ = c.clientConn.SetReadDeadline(time.Now().Add(time.Duration(keepAlive/2+keepAlive) * time.Second))
+		}
+	}
+
+	p, err := c.packetReader.Read()
+	if err != nil {
+		if err != io.EOF && p != nil {
+			logger.Error("read error", zap.String("packet_type", reflect.TypeOf(p).String()))
+		}
+		select {
+		case <-c.closed:
+			logger.Debug("客户端退出，关闭连接")
+		default:
+			logger.Debug("连接超时，自动关闭")
+		}
+		return false
+	}
+
+	if connect, ok := p.(*packet.Connect); ok {
+		if !c.connectAuthentication(ctx, connect) {
+			logger.Debug("authentication failed", zap.String("IP", c.remoteAddr.String()))
+			return false
+		}
+		return true
+	}
+
+	logger.Debug("invalid package", zap.Any("package", p))
+	_ = c.Close()
+	logger.Debug("close connection", zap.String("IP", c.remoteAddr.String()))
+	return false
 }
 
 func (c *client) readConn() {
@@ -280,15 +326,15 @@ func (c *client) readConn() {
 			}
 			return
 		}
-		if connect, ok := p.(*packet.Connect); ok {
-			c.log.Debug("接收认证信息", zap.String("ClientId", string(connect.ClientId)))
-		} else {
-			c.log.Debug("Rec data", zap.String("packet", p.String()))
-		}
+		//if connect, ok := p.(*packet.Connect); ok {
+		//	c.log.Debug("接收认证信息", zap.String("ClientId", string(connect.ClientId)))
+		//} else {
+		//	//c.log.Debug("Rec data", zap.String("packet", p.String()))
+		//}
 		c.in <- p
 
 		// 等待连接认证完成
-		c.waitConnection()
+		//c.waitConnection()
 
 	}
 }
@@ -298,7 +344,7 @@ func (c *client) writeConn() {
 	defer func() {
 	}()
 	for p := range c.out {
-		c.log.Debug("Ret data", zap.String("packet", p.String()))
+		//c.log.Debug("Ret data", zap.String("packet", p.String()))
 		err := c.packetWriter.WritePacketAndFlush(p)
 		if err != nil {
 			return
@@ -307,12 +353,14 @@ func (c *client) writeConn() {
 	c.log.Debug("写入操作退出")
 
 }
-func (c *client) write(packet packet.Packet) {
+func (c *client) write(ctx context.Context, packet packet.Packet) {
+	c.log.WithContext(ctx).Debug("write packet", zap.Any("packet", packet))
 	c.out <- packet
 }
-func (c *client) waitConnection() {
-	<-c.connected
-}
+
+//func (c *client) waitConnection() {
+//	<-c.connected
+//}
 
 func (c *client) connectionDone() {
 	close(c.connected)
@@ -338,7 +386,7 @@ func (c *client) connection() (ok bool) {
 					//err := xerror.ErrProtocol
 					break
 				}
-				return c.connectAuthentication(conn)
+				return c.connectAuthentication(context.Background(), conn)
 			default:
 			}
 		case <-timeout.C:
@@ -351,12 +399,14 @@ func (c *client) connection() (ok bool) {
 
 // TODO 验证客户端连接
 // connectAuthentication 连接验证
-func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
+func (c *client) connectAuthentication(ctx context.Context, conn *packet.Connect) (ok bool) {
+	logger := c.log.WithContext(ctx)
+
 	// 根据报文进行认证
 	var connack *packet.Connack
 	connack = conn.NewConnackPacket(code.Success, true)
 	c.clientId = string(conn.ClientId)
-	c.log.Debug("认证成功", zap.String("clientId", c.clientId))
+	logger.Debug("认证成功", zap.String("clientId", c.clientId))
 
 	c.status = Connected
 	var msg *message.Message
@@ -400,7 +450,7 @@ func (c *client) connectAuthentication(conn *packet.Connect) (ok bool) {
 		RequestProblemInfo:  false,
 	}
 	c.newPacketIdLimiter(c.opt.MaxInflight)
-	c.write(connack)
+	c.write(ctx, connack)
 	return true
 }
 
@@ -432,11 +482,17 @@ func (c *client) handleConn() {
 		}
 	}
 }
+func (c *client) getTraceLog(spanName string) (context.Context, trace.Span, *zap.Logger) {
+	ctx, span := c.server.tracer.Start(context.Background(), spanName)
+	logger := c.log.WithContext(ctx)
+	return ctx, span, logger
+}
 func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
-
+	ctx, span, logger := c.getTraceLog("publish")
+	defer span.End()
+	logger.Debug("received publish packet", zap.Any("packet", publish))
 	//msg := message.FromPublish(publish)
 	var ackPacket packet.Packet
-	//c.log.Debug("msg", zap.Any("msg", msg))
 	switch publish.QoS {
 	case packet.QoS1:
 		ackPacket = publish.CreatePuback()
@@ -447,32 +503,47 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 	if ackPacket != nil {
 		// 返回响应
 		//c.log.Debug("返回响应", zap.Any("packet", ackPacket))
-		c.write(ackPacket)
+		c.write(ctx, ackPacket)
 	}
 
 	return nil
 }
 
 func (c *client) handlePingreq(pingreq *packet.Pingreq) {
-	c.write(pingreq.CreatePingresp())
+	ctx, span, logger := c.getTraceLog("ping request")
+	defer span.End()
+	logger.Debug("received ping request packet", zap.Any("packet", pingreq))
+	c.write(ctx, pingreq.CreatePingresp())
 }
 
 func (c *client) handlePubrel(pubrel *packet.Pubrel) {
-	c.write(pubrel.CreatePubcomp())
+	ctx, span, logger := c.getTraceLog("publish release")
+	defer span.End()
+
+	logger.Debug("received publish release packet", zap.Any("packet", pubrel))
+	c.write(ctx, pubrel.CreatePubcomp())
 }
 
 func (c *client) handleSubscribe(subscribe *packet.Subscribe) {
-	c.write(&packet.Suback{
+	ctx, span, logger := c.getTraceLog("subscribe")
+	defer span.End()
+
+	logger.Debug("received subscribe packet", zap.Any("packet", subscribe))
+	c.write(ctx, &packet.Suback{
 		Version:  subscribe.Version,
 		PacketId: subscribe.PacketId,
 		Payload:  make([]code.Code, len(subscribe.Topics)),
 	})
 }
 
-func (c *client) handleUnsubscribe(data *packet.Unsubscribe) {
-	c.write(&packet.Unsuback{
-		Version:  data.Version,
-		PacketId: data.PacketId,
+func (c *client) handleUnsubscribe(unsubscribe *packet.Unsubscribe) {
+	ctx, span, logger := c.getTraceLog("unsubscribe")
+	defer span.End()
+	logger.Debug("received unsubscribe packet", zap.Any("packet", unsubscribe))
+
+	c.write(ctx, &packet.Unsuback{
+		Version:  unsubscribe.Version,
+		PacketId: unsubscribe.PacketId,
 	})
 }
 
@@ -522,7 +593,7 @@ func (c *client) pollNewMessages(ids []packet.PacketId) (unused []packet.PacketI
 			if m.QoS != packet.QoS0 {
 				ids = ids[1:]
 			}
-			c.write(message.ToPublish(m.Message, c.version))
+			c.write(context.Background(), message.ToPublish(m.Message, c.version))
 		case *queue.Pubrel:
 		}
 	}
@@ -544,9 +615,9 @@ func (c *client) pollInFlights() (bool, error) {
 
 			m.SubscriptionIdentifier = nil
 			c.limit.markUsedLocked(id)
-			c.write(message.ToPublish(m.Message, c.version))
+			c.write(context.Background(), message.ToPublish(m.Message, c.version))
 		case *queue.Pubrel:
-			c.write(&packet.Pubrel{PacketId: id})
+			c.write(context.Background(), &packet.Pubrel{PacketId: id})
 		}
 	}
 	return false, nil
@@ -554,8 +625,4 @@ func (c *client) pollInFlights() (bool, error) {
 
 func (c *client) newPacketIdLimiter(limit uint16) {
 	c.limit = newPacketIDLimiter(limit)
-}
-
-func (c *client) Context() context.Context {
-	return c.ctx
 }
