@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	sub "github.com/yunqi/lighthouse/internal/subscription"
 	"strings"
@@ -29,7 +30,7 @@ type TrieDB struct {
 
 }
 
-func (db *TrieDB) Init(clientIDs []string) error {
+func (db *TrieDB) Init(ctx context.Context, clientIDs []string) error {
 	return nil
 }
 
@@ -214,7 +215,7 @@ func (db *TrieDB) IterateLocked(fn subscription.IterateFn, options subscription.
 		}
 	}
 }
-func (db *TrieDB) Iterate(fn subscription.IterateFn, options subscription.IterationOptions) {
+func (db *TrieDB) Iterate(ctx context.Context, fn subscription.IterateFn, options subscription.IterationOptions) {
 	db.RLock()
 	defer db.RUnlock()
 	db.IterateLocked(fn, options)
@@ -264,7 +265,7 @@ func NewStore() *TrieDB {
 }
 
 // SubscribeLocked is the non thread-safe version of Subscribe
-func (db *TrieDB) SubscribeLocked(clientID string, subscriptions ...*sub.Subscription) subscription.SubscribeResult {
+func (db *TrieDB) SubscribeLocked(ctx context.Context, clientID string, subscriptions ...*sub.Subscription) subscription.SubscribeResult {
 	var node *topicNode
 	var index map[string]map[string]*topicNode
 	rs := make(subscription.SubscribeResult, len(subscriptions))
@@ -300,15 +301,15 @@ func (db *TrieDB) SubscribeLocked(clientID string, subscriptions ...*sub.Subscri
 	return rs
 }
 
-// SubscribeLocked add subscriptions for the client
-func (db *TrieDB) Subscribe(clientID string, subscriptions ...*sub.Subscription) (subscription.SubscribeResult, error) {
+// Subscribe add subscriptions for the client
+func (db *TrieDB) Subscribe(ctx context.Context, clientID string, subscriptions ...*sub.Subscription) (subscription.SubscribeResult, error) {
 	db.Lock()
 	defer db.Unlock()
-	return db.SubscribeLocked(clientID, subscriptions...), nil
+	return db.SubscribeLocked(ctx, clientID, subscriptions...), nil
 }
 
 // UnsubscribeLocked is the non thread-safe version of Unsubscribe
-func (db *TrieDB) UnsubscribeLocked(clientID string, topics ...string) {
+func (db *TrieDB) UnsubscribeLocked(ctx context.Context, clientID string, topics ...string) {
 	var index map[string]map[string]*topicNode
 	var topicTrie *topicTrie
 	for _, topic := range topics {
@@ -336,10 +337,10 @@ func (db *TrieDB) UnsubscribeLocked(clientID string, topics ...string) {
 }
 
 // Unsubscribe remove subscriptions for the client
-func (db *TrieDB) Unsubscribe(clientID string, topics ...string) error {
+func (db *TrieDB) Unsubscribe(ctx context.Context, clientID string, topics ...string) error {
 	db.Lock()
 	defer db.Unlock()
-	db.UnsubscribeLocked(clientID, topics...)
+	db.UnsubscribeLocked(ctx, clientID, topics...)
 	return nil
 }
 
@@ -366,7 +367,7 @@ func (db *TrieDB) UnsubscribeAllLocked(clientID string) {
 }
 
 // UnsubscribeAll delete all subscriptions of the client
-func (db *TrieDB) UnsubscribeAll(clientID string) error {
+func (db *TrieDB) UnsubscribeAll(ctx context.Context, clientID string) error {
 	db.Lock()
 	defer db.Unlock()
 	// user topics

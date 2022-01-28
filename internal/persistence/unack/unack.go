@@ -1,6 +1,7 @@
 package unack
 
 import (
+	"context"
 	"github.com/yunqi/lighthouse/internal/packet"
 )
 
@@ -10,10 +11,10 @@ type Store interface {
 	// Init will be called when the client connect.
 	// If cleanStart set to true, the implementation should remove any associated data in backend store.
 	// If it set to false, the implementation should retrieve the associated data from backend store.
-	Init(cleanStart bool) error
+	Init(ctx context.Context, cleanStart bool) error
 	// Set sets the given id into store.
 	// The return boolean indicates whether the id exist.
-	Set(id packet.PacketId) (bool, error)
+	Set(ctx context.Context, id packet.Id) (bool, error)
 	// Remove removes the given id from store.
-	Remove(id packet.PacketId) error
+	Remove(ctx context.Context, id packet.Id) error
 }

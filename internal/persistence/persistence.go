@@ -18,11 +18,12 @@ package persistence
 
 import (
 	"github.com/yunqi/lighthouse/internal/persistence/session"
+	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 )
 
 var (
 	sessionStores = map[string]session.NewStore{}
-	//queueStores   = map[string]SessionPersistence{}
+	queueStores   = map[string]subscription.Store{}
 )
 
 func RegisterSessionStore(name string, store session.NewStore) {

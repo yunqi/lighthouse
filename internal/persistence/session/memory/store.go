@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"github.com/chenquan/go-pkg/xsync"
 	"github.com/yunqi/lighthouse/config"
 	"github.com/yunqi/lighthouse/internal/persistence"
@@ -26,18 +27,18 @@ type Store struct {
 	m *xsync.SharedMap
 }
 
-func (s *Store) Set(session *sess.Session) error {
+func (s *Store) Set(ctx context.Context, session *sess.Session) error {
 
 	s.m.Store(session.ClientId, session)
 	return nil
 }
 
-func (s *Store) Remove(clientID string) error {
+func (s *Store) Remove(ctx context.Context, clientID string) error {
 	s.m.Delete(clientID)
 	return nil
 }
 
-func (s *Store) Get(clientID string) (*sess.Session, error) {
+func (s *Store) Get(ctx context.Context, clientID string) (*sess.Session, error) {
 	if val, b := s.m.Load(clientID); b {
 		return val.(*sess.Session), nil
 	} else {
@@ -57,7 +58,7 @@ func (s *Store) GetAll() ([]*sess.Session, error) {
 	return sessions, nil
 }
 
-func (s *Store) SetSessionExpiry(clientID string, expiry uint32) error {
+func (s *Store) SetSessionExpiry(ctx context.Context, clientID string, expiry uint32) error {
 
 	if s, ok := s.m.Load(clientID); ok {
 		s.(*sess.Session).ExpiryInterval = expiry
@@ -66,7 +67,7 @@ func (s *Store) SetSessionExpiry(clientID string, expiry uint32) error {
 	return nil
 }
 
-func (s *Store) Iterate(fn session.IterateFn) error {
+func (s *Store) Iterate(ctx context.Context, fn session.IterateFn) error {
 	s.m.Range(func(key, value interface{}) bool {
 		return fn(value.(*sess.Session))
 	})

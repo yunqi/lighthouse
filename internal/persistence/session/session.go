@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"github.com/yunqi/lighthouse/config"
 	"github.com/yunqi/lighthouse/internal/session"
 )
@@ -10,9 +11,9 @@ import (
 type IterateFn func(session *session.Session) bool
 type NewStore func(config *config.StoreType) (Store, error)
 type Store interface {
-	Set(session *session.Session) error
-	Remove(clientID string) error
-	Get(clientID string) (*session.Session, error)
-	Iterate(fn IterateFn) error
-	SetSessionExpiry(clientID string, expiry uint32) error
+	Set(ctx context.Context, session *session.Session) error
+	Remove(ctx context.Context, clientID string) error
+	Get(ctx context.Context, clientID string) (*session.Session, error)
+	Iterate(ctx context.Context, fn IterateFn) error
+	SetSessionExpiry(ctx context.Context, clientID string, expiry uint32) error
 }

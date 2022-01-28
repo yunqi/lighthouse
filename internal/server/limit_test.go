@@ -28,13 +28,13 @@ func Test_packetIDLimiter(t *testing.T) {
 	p := newPacketIDLimiter(10)
 	ids := p.pollPacketIds(20)
 	a.Len(ids, 10)
-	a.Equal([]packet.PacketId{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, ids)
+	a.Equal([]packet.Id{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, ids)
 
-	p.batchRelease([]packet.PacketId{7, 8, 9})
+	p.batchRelease([]packet.Id{7, 8, 9})
 
 	ids = p.pollPacketIds(4)
 	a.Len(ids, 3)
-	a.Equal([]packet.PacketId{11, 12, 13}, ids)
+	a.Equal([]packet.Id{11, 12, 13}, ids)
 
 	c := make(chan struct{})
 	go func() {
@@ -55,8 +55,8 @@ func Test_packetIDLimiterMax(t *testing.T) {
 	p := newPacketIDLimiter(packet.MaxPacketID)
 	ids := p.pollPacketIds(packet.MaxPacketID)
 	a.Len(ids, int(packet.MaxPacketID))
-	p.batchRelease([]packet.PacketId{1, 2, 3, packet.MaxPacketID})
-	a.Equal([]packet.PacketId{1, 2, 3}, p.pollPacketIds(3))
-	a.Equal([]packet.PacketId{packet.MaxPacketID}, p.pollPacketIds(3))
+	p.batchRelease([]packet.Id{1, 2, 3, packet.MaxPacketID})
+	a.Equal([]packet.Id{1, 2, 3}, p.pollPacketIds(3))
+	a.Equal([]packet.Id{packet.MaxPacketID}, p.pollPacketIds(3))
 
 }

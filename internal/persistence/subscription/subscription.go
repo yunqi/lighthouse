@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"context"
 	"errors"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/subscription"
@@ -13,7 +14,7 @@ type IterationType byte
 const (
 	// TypeSYS represents system topic, which start with '$'.
 	TypeSYS IterationType = 1 << iota
-	// TypeSYS represents shared topic, which start with '$share/'.
+	// TypeShared TypeSYS represents shared topic, which start with '$share/'.
 	TypeShared
 	// TypeNonShared represents non-shared topic.
 	TypeNonShared
@@ -91,32 +92,32 @@ type IterationOptions struct {
 // This methods will not trigger any gmqtt hooks.
 type Store interface {
 	// Init will be called only once after the server start, the implementation should load the subscriptions of the given clients into memory.
-	Init(clientIDs []string) error
+	Init(ctx context.Context, clientIDs []string) error
 	// Subscribe adds subscriptions to a specific client.
 	// Notice:
 	// This method will succeed even if the client is not exists, the subscriptions
 	// will affect the new client with the client id.
-	Subscribe(clientID string, subscriptions ...*subscription.Subscription) (rs SubscribeResult, err error)
+	Subscribe(ctx context.Context, clientID string, subscriptions ...*subscription.Subscription) (rs SubscribeResult, err error)
 	// Unsubscribe removes subscriptions of a specific client.
-	Unsubscribe(clientID string, topics ...string) error
+	Unsubscribe(ctx context.Context, clientID string, topics ...string) error
 	// UnsubscribeAll removes all subscriptions of a specific client.
-	UnsubscribeAll(clientID string) error
+	UnsubscribeAll(ctx context.Context, clientID string) error
 	// Iterate iterates all subscriptions. The callback is called once for each subscription.
 	// If callback return false, the iteration will be stopped.
 	// Notice:
 	// The results are not sorted in any way, no ordering of any kind is guaranteed.
 	// This method will walk through all subscriptions,
 	// so it is a very expensive operation. Do not call it frequently.
-	Iterate(fn IterateFn, options IterationOptions)
+	Iterate(ctx context.Context, fn IterateFn, options IterationOptions)
 
 	Close() error
 	StatsReader
 }
 
 // GetTopicMatched returns the subscriptions that match the passed topic.
-func GetTopicMatched(store Store, topicFilter string, t IterationType) ClientSubscriptions {
+func GetTopicMatched(ctx context.Context, store Store, topicFilter string, t IterationType) ClientSubscriptions {
 	rs := make(ClientSubscriptions)
-	store.Iterate(func(clientID string, subscription *subscription.Subscription) bool {
+	store.Iterate(ctx, func(clientID string, subscription *subscription.Subscription) bool {
 		rs[clientID] = append(rs[clientID], subscription)
 		return true
 	}, IterationOptions{
@@ -131,9 +132,9 @@ func GetTopicMatched(store Store, topicFilter string, t IterationType) ClientSub
 }
 
 // Get returns the subscriptions that equals the passed topic filter.
-func Get(store Store, topicFilter string, t IterationType) ClientSubscriptions {
+func Get(ctx context.Context, store Store, topicFilter string, t IterationType) ClientSubscriptions {
 	rs := make(ClientSubscriptions)
-	store.Iterate(func(clientID string, subscription *subscription.Subscription) bool {
+	store.Iterate(ctx, func(clientID string, subscription *subscription.Subscription) bool {
 		rs[clientID] = append(rs[clientID], subscription)
 		return true
 	}, IterationOptions{
@@ -148,9 +149,9 @@ func Get(store Store, topicFilter string, t IterationType) ClientSubscriptions {
 }
 
 // GetClientSubscriptions returns the subscriptions of a specific client.
-func GetClientSubscriptions(store Store, clientID string, t IterationType) []*subscription.Subscription {
+func GetClientSubscriptions(ctx context.Context, store Store, clientID string, t IterationType) []*subscription.Subscription {
 	var rs []*subscription.Subscription
-	store.Iterate(func(clientID string, subscription *subscription.Subscription) bool {
+	store.Iterate(ctx, func(clientID string, subscription *subscription.Subscription) bool {
 		rs = append(rs, subscription)
 		return true
 	}, IterationOptions{

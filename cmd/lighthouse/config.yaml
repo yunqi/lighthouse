@@ -6,7 +6,23 @@ log:
   filename: log.log
 persistence:
   session:
-    type: memory
+    type: redis
+    # The redis configuration only take effect when type == redis.
+    redis:
+      # redis server address
+      addr: "127.0.0.1:6379"
+      # the maximum number of idle connections in the redis connection pool.
+      max_idle: 1000
+      # the maximum number of connections allocated by the redis connection pool at a given time.
+      # If zero, there is no limit on the number of connections in the pool.
+      max_active: 0
+      # the connection idle timeout, connection will be closed after remaining idle for this duration. If the value is zero, then idle connections are not closed.
+      idle_timeout: 240s
+      password: ""
+      # the number of the redis database.
+      database: 0
+
+      timeout: 240s
   queue:
     type: memory
 trace:

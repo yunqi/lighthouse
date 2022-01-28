@@ -49,6 +49,7 @@ func StartAgent(c *config.Trace) {
 
 	agents[c.Endpoint] = struct{}{}
 }
+
 func startAgent(c *config.Trace) error {
 	opts := []sdktrace.TracerProviderOption{
 		// Set the sampling rate based on the parent span to 100%

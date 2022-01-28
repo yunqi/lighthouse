@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package binary
+package encoding
 
 import (
 	"bytes"
@@ -31,7 +31,7 @@ func TestEncodeMessage(t *testing.T) {
 		Retained:               false,
 		Topic:                  "test",
 		Payload:                []byte("payload"),
-		PacketId:               packet.PacketId(11),
+		PacketId:               packet.Id(11),
 		ContentType:            "context/json",
 		CorrelationData:        []byte("1"),
 		MessageExpiry:          1,

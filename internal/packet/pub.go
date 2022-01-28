@@ -25,7 +25,7 @@ import (
 type BasePub struct {
 	Version     Version
 	FixedHeader *FixedHeader
-	PacketId    PacketId
+	PacketId    Id
 }
 
 func (bp *BasePub) decode(r io.Reader) (err error) {

@@ -37,7 +37,7 @@ type (
 		QoS         uint8  //qos等级
 		Retain      bool   //是否保留消息
 		TopicName   []byte //主题名
-		PacketId           //报文标识符
+		PacketId    Id     //报文标识符
 		Payload     []byte
 	}
 )

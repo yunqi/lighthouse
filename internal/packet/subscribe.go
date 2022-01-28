@@ -27,7 +27,7 @@ type (
 	Subscribe struct {
 		Version     Version
 		FixedHeader *FixedHeader
-		PacketId    PacketId
+		PacketId    Id
 		Topics      []*Topic //suback响应之前填充
 	}
 )

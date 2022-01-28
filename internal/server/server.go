@@ -135,6 +135,7 @@ func (s *server) init(opts *Options) {
 	s.websocketListen = opts.websocketListen
 	s.log = xlog.LoggerModule("server")
 
+	// session store
 	sessionStore, ok := persistence.GetSessionStore(opts.persistence.Session.Type)
 	if !ok {
 		s.log.Panic("invalid session store")
@@ -146,6 +147,8 @@ func (s *server) init(opts *Options) {
 		s.sessions = store
 		s.log.Info("session store", zap.String("type", opts.persistence.Session.Type))
 	}
+
+	// subscription store
 
 	ln, err := net.Listen("tcp", s.tcpListen)
 	if err != nil {

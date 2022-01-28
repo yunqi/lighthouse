@@ -28,7 +28,7 @@ type (
 		Retained bool
 		Topic    string
 		Payload  []byte
-		PacketId packet.PacketId
+		PacketId packet.Id
 
 		ContentType            string
 		CorrelationData        []byte

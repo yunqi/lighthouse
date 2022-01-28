@@ -22,7 +22,7 @@ type (
 
 	// FixedHeader represents the FixedHeader of the MQTT packet
 	FixedHeader struct {
-		PacketType   PacketType
+		PacketType   Type
 		Flags        byte
 		RemainLength int
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"github.com/yunqi/lighthouse/internal/persistence/queue"
+	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	"github.com/yunqi/lighthouse/internal/session"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"github.com/yunqi/lighthouse/internal/xlog"
@@ -107,30 +108,30 @@ type (
 		RequestProblemInfo bool
 	}
 	client struct {
-		clientId      string
-		connectedAt   int64
-		clientConn    net.Conn
-		bufReader     io.Reader
-		bufWriter     io.Writer
-		packetReader  *packet.Reader
-		packetWriter  *packet.Writer
-		status        Status
-		server        *server
-		in            chan packet.Packet
-		out           chan packet.Packet
-		session       *session.Session
-		cleanWillFlag bool // whether to remove will Msg
-		version       packet.Version
-		opt           *ClientOption //set up before OnConnect()
-		disconnect    *packet.Disconnect
-		closed        chan struct{}
-		connected     chan struct{}
-		wg            sync.WaitGroup
-		queueStore    queue.Queue
-		limit         *packetIdLimiter
-		//ctx           context.Context
-		log        *xlog.Log
-		remoteAddr net.Addr
+		clientId          string
+		connectedAt       int64
+		clientConn        net.Conn
+		bufReader         io.Reader
+		bufWriter         io.Writer
+		packetReader      *packet.Reader
+		packetWriter      *packet.Writer
+		status            Status
+		server            *server
+		in                chan packet.Packet
+		out               chan packet.Packet
+		session           *session.Session
+		cleanWillFlag     bool // whether to remove will Msg
+		version           packet.Version
+		opt               *ClientOption //set up before OnConnect()
+		disconnect        *packet.Disconnect
+		closed            chan struct{}
+		connected         chan struct{}
+		wg                sync.WaitGroup
+		queueStore        queue.Queue
+		subscriptionStore subscription.Store
+		limit             *packetIdLimiter
+		log               *xlog.Log
+		remoteAddr        net.Addr
 	}
 )
 
@@ -434,7 +435,10 @@ func (c *client) connectAuthentication(ctx context.Context, conn *packet.Connect
 		ExpiryInterval:    0,
 	}
 	// client session
-	_ = c.server.sessions.Set(c.session)
+	err := c.server.sessions.Set(ctx, c.session)
+	if err != nil {
+		logger.Panic("redis err", zap.Error(err))
+	}
 	c.version = conn.Version
 	c.opt = &ClientOption{
 		ClientId:  c.clientId,
@@ -564,7 +568,7 @@ func (c *client) pollMessageHandler() {
 			return
 		}
 	}
-	var ids []packet.PacketId
+	var ids []packet.Id
 	for {
 		max := uint16(100)
 		if c.opt.MaxInflight < max {
@@ -581,9 +585,9 @@ func (c *client) pollMessageHandler() {
 		c.limit.batchRelease(ids)
 	}
 }
-func (c *client) pollNewMessages(ids []packet.PacketId) (unused []packet.PacketId, err error) {
+func (c *client) pollNewMessages(ids []packet.Id) (unused []packet.Id, err error) {
 	var elems []*queue.Element
-	elems, err = c.queueStore.Read(ids)
+	elems, err = c.queueStore.Read(context.Background(), ids)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +605,7 @@ func (c *client) pollNewMessages(ids []packet.PacketId) (unused []packet.PacketI
 }
 func (c *client) pollInFlights() (bool, error) {
 	var elems []*queue.Element
-	elems, err := c.queueStore.ReadInflight(uint(c.opt.MaxInflight))
+	elems, err := c.queueStore.ReadInflight(context.Background(), uint(c.opt.MaxInflight))
 	if err != nil || len(elems) == 0 {
 		return false, err
 	}

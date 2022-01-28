@@ -27,7 +27,7 @@ type (
 	Pubcomp struct {
 		Version     Version
 		FixedHeader *FixedHeader
-		PacketId    PacketId
+		PacketId    Id
 	}
 )
 
