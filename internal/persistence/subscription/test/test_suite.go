@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	subscription2 "github.com/yunqi/lighthouse/internal/subscription"
@@ -143,7 +144,7 @@ var testSubs = []struct {
 func testAddSubscribe(t *testing.T, store subscription.Store) {
 	a := assert.New(t)
 	for _, v := range testSubs {
-		_, err := store.Subscribe(v.clientID, v.subs...)
+		_, err := store.Subscribe(context.Background(), v.clientID, v.subs...)
 		a.Nil(err)
 	}
 }
@@ -166,7 +167,7 @@ func testGetStatus(t *testing.T, store subscription.Store) {
 		{clientID: "id4", topic: packet.Topic{Name: "$SYS/abc/def", SubOptions: packet.SubOptions{QoS: packet.QoS2}}},
 	}
 	for _, v := range tt {
-		_, err = store.Subscribe(v.clientID, subscription.FromTopic(v.topic, 0))
+		_, err = store.Subscribe(context.Background(), v.clientID, subscription.FromTopic(v.topic, 0))
 		a.NoError(err)
 	}
 	stats := store.GetStats()
@@ -176,9 +177,9 @@ func testGetStatus(t *testing.T, store subscription.Store) {
 	a.EqualValues(expectedCurrent, stats.SubscriptionsCurrent)
 
 	// If subscribe duplicated topic, total and current statistics should not increase
-	_, err = store.Subscribe("id0", subscription.FromTopic(packet.Topic{SubOptions: packet.SubOptions{QoS: packet.QoS0}, Name: "name0"}, 0))
+	_, err = store.Subscribe(context.Background(), "id0", subscription.FromTopic(packet.Topic{SubOptions: packet.SubOptions{QoS: packet.QoS0}, Name: "name0"}, 0))
 	a.NoError(err)
-	_, err = store.Subscribe("id4", subscription.FromTopic(packet.Topic{SubOptions: packet.SubOptions{QoS: packet.QoS2}, Name: "$share/abc/name4"}, 0))
+	_, err = store.Subscribe(context.Background(), "id4", subscription.FromTopic(packet.Topic{SubOptions: packet.SubOptions{QoS: packet.QoS2}, Name: "$share/abc/name4"}, 0))
 	a.NoError(err)
 
 	stats = store.GetStats()
@@ -194,26 +195,26 @@ func testGetStatus(t *testing.T, store subscription.Store) {
 	}
 	expectedCurrent -= 2
 	for _, v := range utt {
-		a.NoError(store.Unsubscribe(v.clientID, v.topic.Name))
+		a.NoError(store.Unsubscribe(context.Background(), v.clientID, v.topic.Name))
 	}
 	stats = store.GetStats()
 	a.EqualValues(expectedTotal, stats.SubscriptionsTotal)
 	a.EqualValues(expectedCurrent, stats.SubscriptionsCurrent)
 
 	//if unsubscribe not exists topic, current statistics should not decrease
-	a.NoError(store.Unsubscribe("id0", "name555"))
+	a.NoError(store.Unsubscribe(context.Background(), "id0", "name555"))
 	stats = store.GetStats()
 	a.EqualValues(len(tt), stats.SubscriptionsTotal)
 	a.EqualValues(expectedCurrent, stats.SubscriptionsCurrent)
 
-	a.NoError(store.Unsubscribe("id4", "$share/abc/name4"))
+	a.NoError(store.Unsubscribe(context.Background(), "id4", "$share/abc/name4"))
 
 	expectedCurrent -= 1
 	stats = store.GetStats()
 	a.EqualValues(expectedTotal, stats.SubscriptionsTotal)
 	a.EqualValues(expectedCurrent, stats.SubscriptionsCurrent)
 
-	a.NoError(store.UnsubscribeAll("id4"))
+	a.NoError(store.UnsubscribeAll(context.Background(), "id4"))
 	expectedCurrent -= 3
 	stats = store.GetStats()
 	a.EqualValues(len(tt), stats.SubscriptionsTotal)
@@ -239,14 +240,14 @@ func testGetClientStats(t *testing.T, store subscription.Store) {
 		{clientID: "id2", topic: packet.Topic{Name: "name5", SubOptions: packet.SubOptions{QoS: packet.QoS2}}},
 	}
 	for _, v := range tt {
-		_, err = store.Subscribe(v.clientID, subscription.FromTopic(v.topic, 0))
+		_, err = store.Subscribe(context.Background(), v.clientID, subscription.FromTopic(v.topic, 0))
 		a.NoError(err)
 	}
 	stats, _ := store.GetClientStats("id0")
 	a.EqualValues(4, stats.SubscriptionsTotal)
 	a.EqualValues(4, stats.SubscriptionsCurrent)
 
-	a.NoError(store.UnsubscribeAll("id0"))
+	a.NoError(store.UnsubscribeAll(context.Background(), "id0"))
 	stats, _ = store.GetClientStats("id0")
 	a.EqualValues(4, stats.SubscriptionsTotal)
 	a.EqualValues(0, stats.SubscriptionsCurrent)
@@ -255,7 +256,7 @@ func testGetClientStats(t *testing.T, store subscription.Store) {
 func TestSuite(t *testing.T, new func() subscription.Store) {
 	a := assert.New(t)
 	store := new()
-	a.Nil(store.Init(nil))
+	a.Nil(store.Init(context.Background(), nil))
 	defer store.Close()
 	for i := 0; i <= 1; i++ {
 		testAddSubscribe(t, store)
@@ -274,14 +275,14 @@ func TestSuite(t *testing.T, new func() subscription.Store) {
 	}
 
 	store2 := new()
-	a.Nil(store2.Init(nil))
+	a.Nil(store2.Init(context.Background(), nil))
 	defer store2.Close()
 	t.Run("testGetStatus", func(t *testing.T) {
 		testGetStatus(t, store2)
 	})
 
 	store3 := new()
-	a.Nil(store3.Init(nil))
+	a.Nil(store3.Init(context.Background(), nil))
 	defer store3.Close()
 	t.Run("testGetStatus", func(t *testing.T) {
 		testGetClientStats(t, store3)
@@ -290,56 +291,56 @@ func TestSuite(t *testing.T, new func() subscription.Store) {
 func testGetTopic(t *testing.T, store subscription.Store) {
 	a := assert.New(t)
 
-	rs := subscription.Get(store, topicA.TopicFilter, subscription.TypeAll)
+	rs := subscription.Get(context.Background(), store, topicA.TopicFilter, subscription.TypeAll)
 	a.Equal(topicA, rs["client1"][0])
 	a.Equal(topicA, rs["client2"][0])
 
-	rs = subscription.Get(store, topicA.TopicFilter, subscription.TypeNonShared)
+	rs = subscription.Get(context.Background(), store, topicA.TopicFilter, subscription.TypeNonShared)
 	a.Equal(topicA, rs["client1"][0])
 	a.Equal(topicA, rs["client2"][0])
 
-	rs = subscription.Get(store, systemTopicA.TopicFilter, subscription.TypeAll)
+	rs = subscription.Get(context.Background(), store, systemTopicA.TopicFilter, subscription.TypeAll)
 	a.Equal(systemTopicA, rs["client1"][0])
 	a.Equal(systemTopicA, rs["client2"][0])
 
-	rs = subscription.Get(store, systemTopicA.TopicFilter, subscription.TypeSYS)
+	rs = subscription.Get(context.Background(), store, systemTopicA.TopicFilter, subscription.TypeSYS)
 	a.Equal(systemTopicA, rs["client1"][0])
 	a.Equal(systemTopicA, rs["client2"][0])
 
-	rs = subscription.Get(store, "$share/"+sharedTopicA1.ShareName+"/"+sharedTopicA1.TopicFilter, subscription.TypeAll)
+	rs = subscription.Get(context.Background(), store, "$share/"+sharedTopicA1.ShareName+"/"+sharedTopicA1.TopicFilter, subscription.TypeAll)
 	a.Equal(sharedTopicA1, rs["client1"][0])
 	a.Equal(sharedTopicA1, rs["client2"][0])
 
 }
 func testTopicMatch(t *testing.T, store subscription.Store) {
 	a := assert.New(t)
-	rs := subscription.GetTopicMatched(store, topicA.TopicFilter, subscription.TypeAll)
+	rs := subscription.GetTopicMatched(context.Background(), store, topicA.TopicFilter, subscription.TypeAll)
 	a.ElementsMatch([]*subscription2.Subscription{topicA, sharedTopicA1, sharedTopicA2}, rs["client1"])
 	a.ElementsMatch([]*subscription2.Subscription{topicA, sharedTopicA1, sharedTopicA2}, rs["client2"])
 
-	rs = subscription.GetTopicMatched(store, topicA.TopicFilter, subscription.TypeNonShared)
+	rs = subscription.GetTopicMatched(context.Background(), store, topicA.TopicFilter, subscription.TypeNonShared)
 	a.ElementsMatch([]*subscription2.Subscription{topicA}, rs["client1"])
 	a.ElementsMatch([]*subscription2.Subscription{topicA}, rs["client2"])
 
-	rs = subscription.GetTopicMatched(store, topicA.TopicFilter, subscription.TypeShared)
+	rs = subscription.GetTopicMatched(context.Background(), store, topicA.TopicFilter, subscription.TypeShared)
 	a.ElementsMatch([]*subscription2.Subscription{sharedTopicA1, sharedTopicA2}, rs["client1"])
 	a.ElementsMatch([]*subscription2.Subscription{sharedTopicA1, sharedTopicA2}, rs["client2"])
 
-	rs = subscription.GetTopicMatched(store, systemTopicA.TopicFilter, subscription.TypeSYS)
+	rs = subscription.GetTopicMatched(context.Background(), store, systemTopicA.TopicFilter, subscription.TypeSYS)
 	a.ElementsMatch([]*subscription2.Subscription{systemTopicA}, rs["client1"])
 	a.ElementsMatch([]*subscription2.Subscription{systemTopicA}, rs["client2"])
 
 }
 func testUnsubscribe(t *testing.T, store subscription.Store) {
 	a := assert.New(t)
-	a.Nil(store.Unsubscribe("client1", topicA.TopicFilter))
-	rs := subscription.Get(store, topicA.TopicFilter, subscription.TypeAll)
+	a.Nil(store.Unsubscribe(context.Background(), "client1", topicA.TopicFilter))
+	rs := subscription.Get(context.Background(), store, topicA.TopicFilter, subscription.TypeAll)
 	a.Nil(rs["client1"])
 	a.ElementsMatch([]*subscription2.Subscription{topicA}, rs["client2"])
-	a.Nil(store.UnsubscribeAll("client2"))
-	a.Nil(store.UnsubscribeAll("client1"))
+	a.Nil(store.UnsubscribeAll(context.Background(), "client2"))
+	a.Nil(store.UnsubscribeAll(context.Background(), "client1"))
 	var iterationCalled bool
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		iterationCalled = true
 		return true
 	}, subscription.IterationOptions{Type: subscription.TypeAll})
@@ -350,7 +351,7 @@ func testIterate(t *testing.T, store subscription.Store) {
 
 	var iterationCalled bool
 	// invalid subscription.IterationOptions
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		iterationCalled = true
 		return true
 	}, subscription.IterationOptions{})
@@ -363,7 +364,7 @@ func testIterateNonShared(t *testing.T, store subscription.Store) {
 	a := assert.New(t)
 	// iterate all non-shared subscriptions.
 	got := make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -374,7 +375,7 @@ func testIterateNonShared(t *testing.T, store subscription.Store) {
 
 	// iterate all non-shared subscriptions with ClientId option.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -387,7 +388,7 @@ func testIterateNonShared(t *testing.T, store subscription.Store) {
 
 	// iterate all non-shared subscriptions that matched given topic name.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -400,7 +401,7 @@ func testIterateNonShared(t *testing.T, store subscription.Store) {
 
 	// iterate all non-shared subscriptions that matched given topic name and client id
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -414,7 +415,7 @@ func testIterateNonShared(t *testing.T, store subscription.Store) {
 
 	// iterate all non-shared subscriptions that matched given topic filter.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -427,7 +428,7 @@ func testIterateNonShared(t *testing.T, store subscription.Store) {
 
 	// iterate all non-shared subscriptions that matched given topic filter and client id
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -443,7 +444,7 @@ func testIterateShared(t *testing.T, store subscription.Store) {
 	a := assert.New(t)
 	// iterate all shared subscriptions.
 	got := make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -454,7 +455,7 @@ func testIterateShared(t *testing.T, store subscription.Store) {
 
 	// iterate all shared subscriptions with ClientId option.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -466,7 +467,7 @@ func testIterateShared(t *testing.T, store subscription.Store) {
 
 	// iterate all shared subscriptions that matched given topic filter.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -479,7 +480,7 @@ func testIterateShared(t *testing.T, store subscription.Store) {
 
 	// iterate all shared subscriptions that matched given topic filter and client id
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -493,7 +494,7 @@ func testIterateShared(t *testing.T, store subscription.Store) {
 
 	// iterate all shared subscriptions that matched given topic name.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -506,7 +507,7 @@ func testIterateShared(t *testing.T, store subscription.Store) {
 
 	// iterate all shared subscriptions that matched given topic name and clientID
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -523,7 +524,7 @@ func testIterateSystem(t *testing.T, store subscription.Store) {
 	a := assert.New(t)
 	// iterate all system subscriptions.
 	got := make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -534,7 +535,7 @@ func testIterateSystem(t *testing.T, store subscription.Store) {
 
 	// iterate all system subscriptions with ClientId option.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -546,7 +547,7 @@ func testIterateSystem(t *testing.T, store subscription.Store) {
 
 	// iterate all system subscriptions that matched given topic filter.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -559,7 +560,7 @@ func testIterateSystem(t *testing.T, store subscription.Store) {
 
 	// iterate all system subscriptions that matched given topic filter and client id
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -573,7 +574,7 @@ func testIterateSystem(t *testing.T, store subscription.Store) {
 
 	// iterate all system subscriptions that matched given topic name.
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
@@ -586,7 +587,7 @@ func testIterateSystem(t *testing.T, store subscription.Store) {
 
 	// iterate all system subscriptions that matched given topic name and clientID
 	got = make(subscription.ClientSubscriptions)
-	store.Iterate(func(clientID string, sub *subscription2.Subscription) bool {
+	store.Iterate(context.Background(), func(clientID string, sub *subscription2.Subscription) bool {
 		got[clientID] = append(got[clientID], sub)
 		return true
 	}, subscription.IterationOptions{
