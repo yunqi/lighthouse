@@ -3,6 +3,7 @@ package subscription
 import (
 	"context"
 	"errors"
+	"github.com/yunqi/lighthouse/config"
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/subscription"
 	"strings"
@@ -26,7 +27,10 @@ var (
 )
 
 // MatchType specifies what match operation will be performed during the iteration.
-type MatchType byte
+type (
+	MatchType byte
+	NewStore  func(config *config.StoreType) (Store, error)
+)
 
 const (
 	MatchName MatchType = 1 << iota

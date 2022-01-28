@@ -2,11 +2,17 @@ package memory
 
 import (
 	"context"
+	"github.com/yunqi/lighthouse/config"
+	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	sub "github.com/yunqi/lighthouse/internal/subscription"
 	"strings"
 	"sync"
 )
+
+func init() {
+	persistence.RegisterSubscriptionStore(persistence.Memory, newStore())
+}
 
 var _ subscription.Store = (*TrieDB)(nil)
 
@@ -248,8 +254,25 @@ func (db *TrieDB) GetClientStats(clientID string) (subscription.Stats, error) {
 	return db.GetClientStatsLocked(clientID)
 }
 
-// NewStore create a new TrieDB instance
-func NewStore() *TrieDB {
+// newStore create a new TrieDB instance
+func newStore() subscription.NewStore {
+	return func(config *config.StoreType) (subscription.Store, error) {
+		return &TrieDB{
+			userIndex: make(map[string]map[string]*topicNode),
+			userTrie:  newTopicTrie(),
+
+			systemIndex: make(map[string]map[string]*topicNode),
+			systemTrie:  newTopicTrie(),
+
+			sharedIndex: make(map[string]map[string]*topicNode),
+			sharedTrie:  newTopicTrie(),
+
+			clientStats: make(map[string]*subscription.Stats),
+		}, nil
+	}
+}
+
+func New() *TrieDB {
 	return &TrieDB{
 		userIndex: make(map[string]map[string]*topicNode),
 		userTrie:  newTopicTrie(),

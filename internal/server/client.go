@@ -28,6 +28,7 @@ import (
 	"github.com/yunqi/lighthouse/internal/persistence/queue"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	"github.com/yunqi/lighthouse/internal/session"
+	sub "github.com/yunqi/lighthouse/internal/subscription"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"go.opentelemetry.io/otel/trace"
@@ -189,19 +190,20 @@ func newClient(server *server, conn net.Conn) *client {
 	reader := xio.GetBufferReaderSize(conn, 2048)
 	writer := xio.GetBufferWriterSize(conn, 2048)
 	c := &client{
-		server:       server,
-		clientConn:   conn,
-		bufReader:    reader,
-		bufWriter:    writer,
-		packetReader: packet.NewReader(reader),
-		packetWriter: packet.NewWriter(writer),
-		connectedAt:  time.Now().UnixMilli(),
-		in:           make(chan packet.Packet, 8),
-		out:          make(chan packet.Packet, 8),
-		closed:       make(chan struct{}),
-		connected:    make(chan struct{}),
-		log:          xlog.LoggerModule("client"),
-		remoteAddr:   conn.RemoteAddr(),
+		server:            server,
+		clientConn:        conn,
+		bufReader:         reader,
+		bufWriter:         writer,
+		packetReader:      packet.NewReader(reader),
+		packetWriter:      packet.NewWriter(writer),
+		connectedAt:       time.Now().UnixMilli(),
+		in:                make(chan packet.Packet, 8),
+		out:               make(chan packet.Packet, 8),
+		closed:            make(chan struct{}),
+		connected:         make(chan struct{}),
+		log:               xlog.LoggerModule("client"),
+		remoteAddr:        conn.RemoteAddr(),
+		subscriptionStore: server.subscriptionStore,
 	}
 	return c
 }
@@ -435,10 +437,18 @@ func (c *client) connectAuthentication(ctx context.Context, conn *packet.Connect
 		ExpiryInterval:    0,
 	}
 	// client session
-	err := c.server.sessions.Set(ctx, c.session)
+	err := c.server.sessionStore.Set(ctx, c.session)
 	if err != nil {
 		logger.Panic("redis err", zap.Error(err))
 	}
+	if !conn.CleanSession {
+		// 获取订阅记录
+		subscriptions := subscription.GetClientSubscriptions(ctx, c.server.subscriptionStore, string(conn.ClientId), subscription.TypeAll)
+
+		logger.Info("all subscriptions", zap.Any("subscriptions", subscriptions))
+
+	}
+
 	c.version = conn.Version
 	c.opt = &ClientOption{
 		ClientId:  c.clientId,
@@ -533,6 +543,28 @@ func (c *client) handleSubscribe(subscribe *packet.Subscribe) {
 	defer span.End()
 
 	logger.Debug("received subscribe packet", zap.String("packet", subscribe.String()))
+
+	var subs = make([]*sub.Subscription, 0, len(subscribe.Topics))
+
+	for _, topic := range subscribe.Topics {
+		subs = append(subs, &sub.Subscription{
+			//ShareName:         topic.Name,
+			TopicFilter: topic.Name,
+			//ID:                subscribe.PacketId,
+			QoS:               topic.QoS,
+			NoLocal:           topic.NoLocal,
+			RetainAsPublished: topic.RetainAsPublished,
+			RetainHandling:    topic.RetainHandling,
+		})
+	}
+	subscribeResult, err := c.subscriptionStore.Subscribe(ctx, c.clientId, subs...)
+	if err != nil {
+		logger.Error("err", zap.Error(err))
+		return
+
+	} else {
+		logger.Info("", zap.Any("subscribeResult", subscribeResult))
+	}
 	c.write(ctx, &packet.Suback{
 		Version:  subscribe.Version,
 		PacketId: subscribe.PacketId,

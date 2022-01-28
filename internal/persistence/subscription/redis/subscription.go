@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"github.com/chenquan/go-pkg/xbinary"
+	"github.com/yunqi/lighthouse/config"
+	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription/memory"
 	red "github.com/yunqi/lighthouse/internal/redis"
@@ -11,6 +13,10 @@ import (
 	"strings"
 	"sync"
 )
+
+func init() {
+	persistence.RegisterSubscriptionStore(persistence.Redis, New())
+}
 
 const (
 	subPrefix = "lighthouse:subscription:"
@@ -66,12 +72,15 @@ func DecodeSubscription(b []byte) (*subsc.Subscription, error) {
 	return sub, nil
 }
 
-func New(r *red.Redis) *sub {
-	return &sub{
-		mu:       &sync.Mutex{},
-		memStore: memory.NewStore(),
-		r:        r,
+func New() subscription.NewStore {
+	return func(config *config.StoreType) (subscription.Store, error) {
+		return &sub{
+			mu:       &sync.Mutex{},
+			memStore: memory.New(),
+			r:        red.New(config.Redis.Addr),
+		}, nil
 	}
+
 }
 
 type sub struct {
