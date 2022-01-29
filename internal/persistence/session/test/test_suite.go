@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	session2 "github.com/yunqi/lighthouse/internal/session"
@@ -34,15 +35,15 @@ func TestSuite(t *testing.T, store session.Store) {
 		},
 	}
 	for _, v := range tt {
-		a.Nil(store.Set(v))
+		a.Nil(store.Set(context.Background(), v))
 	}
 	for _, v := range tt {
-		sess, err := store.Get(v.ClientId)
+		sess, err := store.Get(context.Background(), v.ClientId)
 		a.Nil(err)
 		a.EqualValues(v, sess)
 	}
 	var sess []*session2.Session
-	err := store.Iterate(func(session *session2.Session) bool {
+	err := store.Iterate(context.Background(), func(session *session2.Session) bool {
 		sess = append(sess, session)
 		return true
 	})

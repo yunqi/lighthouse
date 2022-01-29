@@ -2,7 +2,10 @@ package redis
 
 import (
 	"bytes"
+	"context"
 	"github.com/chenquan/go-pkg/xbinary"
+	"github.com/yunqi/lighthouse/config"
+	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription/memory"
 	red "github.com/yunqi/lighthouse/internal/redis"
@@ -10,6 +13,10 @@ import (
 	"strings"
 	"sync"
 )
+
+func init() {
+	persistence.RegisterSubscriptionStore(persistence.Redis, New())
+}
 
 const (
 	subPrefix = "lighthouse:subscription:"
@@ -65,12 +72,15 @@ func DecodeSubscription(b []byte) (*subsc.Subscription, error) {
 	return sub, nil
 }
 
-func New(r *red.Redis) *sub {
-	return &sub{
-		mu:       &sync.Mutex{},
-		memStore: memory.NewStore(),
-		r:        r,
+func New() subscription.NewStore {
+	return func(config *config.StoreType) (subscription.Store, error) {
+		return &sub{
+			mu:       &sync.Mutex{},
+			memStore: memory.New(),
+			r:        red.New(config.Redis.Addr),
+		}, nil
 	}
+
 }
 
 type sub struct {
@@ -80,7 +90,7 @@ type sub struct {
 }
 
 // Init loads the subscriptions of given clientIDs from backend into memory.
-func (s *sub) Init(clientIDs []string) error {
+func (s *sub) Init(ctx context.Context, clientIDs []string) error {
 	if len(clientIDs) == 0 {
 		return nil
 	}
@@ -88,7 +98,7 @@ func (s *sub) Init(clientIDs []string) error {
 	defer s.mu.Unlock()
 
 	for _, clientId := range clientIDs {
-		rs, err := s.r.Hgetall(subPrefix + clientId)
+		rs, err := s.r.Hgetall(ctx, subPrefix+clientId)
 		if err != nil {
 			return err
 		}
@@ -98,7 +108,7 @@ func (s *sub) Init(clientIDs []string) error {
 			if err != nil {
 				return err
 			}
-			s.memStore.SubscribeLocked(strings.TrimLeft(clientId, subPrefix), sub)
+			s.memStore.SubscribeLocked(ctx, strings.TrimLeft(clientId, subPrefix), sub)
 		}
 	}
 	return nil
@@ -109,7 +119,7 @@ func (s *sub) Close() error {
 	return nil
 }
 
-func (s *sub) Subscribe(clientID string, subscriptions ...*subsc.Subscription) (rs subscription.SubscribeResult, err error) {
+func (s *sub) Subscribe(ctx context.Context, clientID string, subscriptions ...*subsc.Subscription) (rs subscription.SubscribeResult, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// hset sub:clientID topicFilter xxx
@@ -117,30 +127,30 @@ func (s *sub) Subscribe(clientID string, subscriptions ...*subsc.Subscription) (
 	for _, v := range subscriptions {
 		m[subscription.GetFullTopicName(v.ShareName, v.TopicFilter)] = EncodeSubscription(v)
 	}
-	err = s.r.Hmset(subPrefix+clientID, m)
+	err = s.r.Hmset(ctx, subPrefix+clientID, m)
 	if err != nil {
 		return nil, err
 	}
-	rs = s.memStore.SubscribeLocked(clientID, subscriptions...)
+	rs = s.memStore.SubscribeLocked(ctx, clientID, subscriptions...)
 	return rs, nil
 }
 
-func (s *sub) Unsubscribe(clientID string, topics ...string) error {
+func (s *sub) Unsubscribe(ctx context.Context, clientID string, topics ...string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	_, err := s.r.Hdel(subPrefix+clientID, topics...)
+	_, err := s.r.Hdel(ctx, subPrefix+clientID, topics...)
 	if err != nil {
 		return err
 	}
-	s.memStore.UnsubscribeLocked(clientID, topics...)
+	s.memStore.UnsubscribeLocked(ctx, clientID, topics...)
 	return nil
 }
 
-func (s *sub) UnsubscribeAll(clientID string) error {
+func (s *sub) UnsubscribeAll(ctx context.Context, clientID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err := s.r.Del(subPrefix + clientID)
+	_, err := s.r.Del(ctx, subPrefix+clientID)
 	if err != nil {
 		return err
 	}
@@ -148,7 +158,7 @@ func (s *sub) UnsubscribeAll(clientID string) error {
 	return nil
 }
 
-func (s *sub) Iterate(fn subscription.IterateFn, options subscription.IterationOptions) {
+func (s *sub) Iterate(ctx context.Context, fn subscription.IterateFn, options subscription.IterationOptions) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.memStore.IterateLocked(fn, options)

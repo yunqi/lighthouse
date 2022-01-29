@@ -30,7 +30,7 @@ type (
 	Suback struct {
 		Version     Version
 		FixedHeader *FixedHeader
-		PacketId    PacketId
+		PacketId    Id
 		Payload     []code.Code
 	}
 )

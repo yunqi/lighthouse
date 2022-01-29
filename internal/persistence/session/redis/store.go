@@ -2,9 +2,10 @@ package redis
 
 import (
 	"bytes"
+	"context"
 	"github.com/yunqi/lighthouse/config"
 	"github.com/yunqi/lighthouse/internal/persistence"
-	"github.com/yunqi/lighthouse/internal/persistence/message/binary"
+	"github.com/yunqi/lighthouse/internal/persistence/message/encoding"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	red "github.com/yunqi/lighthouse/internal/redis"
 	sess "github.com/yunqi/lighthouse/internal/session"
@@ -47,13 +48,13 @@ func getKey(clientID string) string {
 	return sessPrefix + clientID
 }
 
-func (s *Store) Set(session *sess.Session) error {
+func (s *Store) Set(ctx context.Context, session *sess.Session) error {
 	s.mu.Lock()
 
 	b := &bytes.Buffer{}
-	binary.EncodeMessage(session.Will, b)
+	encoding.EncodeMessage(session.Will, b)
 
-	err := s.r.Hmset(getKey(session.ClientId), map[string]interface{}{
+	err := s.r.Hmset(ctx, getKey(session.ClientId), map[string]interface{}{
 		"client_id":           session.ClientId,
 		"will":                b.Bytes(),
 		"will_delay_interval": session.WillDelayInterval,
@@ -66,23 +67,23 @@ func (s *Store) Set(session *sess.Session) error {
 	return err
 }
 
-func (s *Store) Remove(clientID string) error {
+func (s *Store) Remove(ctx context.Context, clientID string) error {
 	s.mu.Lock()
-	_, err := s.r.Del(getKey(clientID))
+	_, err := s.r.Del(ctx, getKey(clientID))
 	s.mu.Unlock()
 
 	return err
 }
 
-func (s *Store) Get(clientID string) (*sess.Session, error) {
+func (s *Store) Get(ctx context.Context, clientID string) (*sess.Session, error) {
 	s.mu.RLock()
-	_session, err := s.getSessionLocked(getKey(clientID))
+	_session, err := s.getSessionLocked(ctx, getKey(clientID))
 	s.mu.RUnlock()
 	return _session, err
 }
 
-func (s *Store) getSessionLocked(key string) (*sess.Session, error) {
-	m, err := s.r.Hmget(key, "client_id", "will", "will_delay_interval", "connected_at", "expiry_interval")
+func (s *Store) getSessionLocked(ctx context.Context, key string) (*sess.Session, error) {
+	m, err := s.r.Hmget(ctx, key, "client_id", "will", "will_delay_interval", "connected_at", "expiry_interval")
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func (s *Store) getSessionLocked(key string) (*sess.Session, error) {
 		_sess.ClientId = m[0].(string)
 	}
 	if m[1] != nil {
-		_sess.Will, err = binary.DecodeMessageFromBytes([]byte(m[1].(string)))
+		_sess.Will, err = encoding.DecodeMessageFromBytes([]byte(m[1].(string)))
 	}
 	if m[2] != nil {
 		parseUint, err := strconv.ParseUint(m[2].(string), 10, 32)
@@ -119,10 +120,10 @@ func (s *Store) getSessionLocked(key string) (*sess.Session, error) {
 	return _sess, nil
 }
 
-func (s *Store) SetSessionExpiry(clientID string, expiry uint32) error {
+func (s *Store) SetSessionExpiry(ctx context.Context, clientID string, expiry uint32) error {
 	s.mu.Lock()
 
-	err := s.r.Hmset(getKey(clientID), map[string]interface{}{
+	err := s.r.Hmset(ctx, getKey(clientID), map[string]interface{}{
 		"expiry_interval": expiry,
 	})
 
@@ -131,16 +132,16 @@ func (s *Store) SetSessionExpiry(clientID string, expiry uint32) error {
 	return err
 }
 
-func (s *Store) Iterate(fn session.IterateFn) error {
+func (s *Store) Iterate(ctx context.Context, fn session.IterateFn) error {
 	s.mu.RLock()
 
-	keys, _, err := s.r.Scan(0, sessPrefix+"*", 0)
+	keys, _, err := s.r.Scan(ctx, 0, sessPrefix+"*", 0)
 	if err != nil {
 		return err
 	}
 
 	for _, key := range keys {
-		_sess, err := s.getSessionLocked(key)
+		_sess, err := s.getSessionLocked(ctx, key)
 		if err != nil {
 			return err
 		}

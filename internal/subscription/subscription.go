@@ -11,7 +11,7 @@ var (
 	ErrInvalidRetainHandling = errors.New("invalid retain handling")
 )
 
-// Subscription represents a subscription in gmqtt.
+// Subscription represents a subscription in lighthouse.
 type Subscription struct {
 	// ShareName is the share name of a shared subscription.
 	// set to "" if it is a non-shared subscription.

@@ -26,7 +26,9 @@ import (
 	"github.com/yunqi/lighthouse/internal/packet"
 	"github.com/yunqi/lighthouse/internal/persistence/message"
 	"github.com/yunqi/lighthouse/internal/persistence/queue"
+	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	"github.com/yunqi/lighthouse/internal/session"
+	sub "github.com/yunqi/lighthouse/internal/subscription"
 	"github.com/yunqi/lighthouse/internal/xerror"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"go.opentelemetry.io/otel/trace"
@@ -107,30 +109,30 @@ type (
 		RequestProblemInfo bool
 	}
 	client struct {
-		clientId      string
-		connectedAt   int64
-		clientConn    net.Conn
-		bufReader     io.Reader
-		bufWriter     io.Writer
-		packetReader  *packet.Reader
-		packetWriter  *packet.Writer
-		status        Status
-		server        *server
-		in            chan packet.Packet
-		out           chan packet.Packet
-		session       *session.Session
-		cleanWillFlag bool // whether to remove will Msg
-		version       packet.Version
-		opt           *ClientOption //set up before OnConnect()
-		disconnect    *packet.Disconnect
-		closed        chan struct{}
-		connected     chan struct{}
-		wg            sync.WaitGroup
-		queueStore    queue.Queue
-		limit         *packetIdLimiter
-		//ctx           context.Context
-		log        *xlog.Log
-		remoteAddr net.Addr
+		clientId          string
+		connectedAt       int64
+		clientConn        net.Conn
+		bufReader         io.Reader
+		bufWriter         io.Writer
+		packetReader      *packet.Reader
+		packetWriter      *packet.Writer
+		status            Status
+		server            *server
+		in                chan packet.Packet
+		out               chan packet.Packet
+		session           *session.Session
+		cleanWillFlag     bool // whether to remove will Msg
+		version           packet.Version
+		opt               *ClientOption //set up before OnConnect()
+		disconnect        *packet.Disconnect
+		closed            chan struct{}
+		connected         chan struct{}
+		wg                sync.WaitGroup
+		queueStore        queue.Queue
+		subscriptionStore subscription.Store
+		limit             *packetIdLimiter
+		log               *xlog.Log
+		remoteAddr        net.Addr
 	}
 )
 
@@ -188,19 +190,20 @@ func newClient(server *server, conn net.Conn) *client {
 	reader := xio.GetBufferReaderSize(conn, 2048)
 	writer := xio.GetBufferWriterSize(conn, 2048)
 	c := &client{
-		server:       server,
-		clientConn:   conn,
-		bufReader:    reader,
-		bufWriter:    writer,
-		packetReader: packet.NewReader(reader),
-		packetWriter: packet.NewWriter(writer),
-		connectedAt:  time.Now().UnixMilli(),
-		in:           make(chan packet.Packet, 8),
-		out:          make(chan packet.Packet, 8),
-		closed:       make(chan struct{}),
-		connected:    make(chan struct{}),
-		log:          xlog.LoggerModule("client"),
-		remoteAddr:   conn.RemoteAddr(),
+		server:            server,
+		clientConn:        conn,
+		bufReader:         reader,
+		bufWriter:         writer,
+		packetReader:      packet.NewReader(reader),
+		packetWriter:      packet.NewWriter(writer),
+		connectedAt:       time.Now().UnixMilli(),
+		in:                make(chan packet.Packet, 8),
+		out:               make(chan packet.Packet, 8),
+		closed:            make(chan struct{}),
+		connected:         make(chan struct{}),
+		log:               xlog.LoggerModule("client"),
+		remoteAddr:        conn.RemoteAddr(),
+		subscriptionStore: server.subscriptionStore,
 	}
 	return c
 }
@@ -434,7 +437,18 @@ func (c *client) connectAuthentication(ctx context.Context, conn *packet.Connect
 		ExpiryInterval:    0,
 	}
 	// client session
-	_ = c.server.sessions.Set(c.session)
+	err := c.server.sessionStore.Set(ctx, c.session)
+	if err != nil {
+		logger.Panic("redis err", zap.Error(err))
+	}
+	if !conn.CleanSession {
+		// 获取订阅记录
+		subscriptions := subscription.GetClientSubscriptions(ctx, c.server.subscriptionStore, string(conn.ClientId), subscription.TypeAll)
+
+		logger.Info("all subscriptions", zap.Any("subscriptions", subscriptions))
+
+	}
+
 	c.version = conn.Version
 	c.opt = &ClientOption{
 		ClientId:  c.clientId,
@@ -491,7 +505,6 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 	ctx, span, logger := c.getTraceLog("publish")
 	defer span.End()
 	logger.Debug("received publish packet", zap.String("packet", publish.String()))
-	//msg := message.FromPublish(publish)
 	var ackPacket packet.Packet
 	switch publish.QoS {
 	case packet.QoS1:
@@ -502,7 +515,6 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 
 	if ackPacket != nil {
 		// 返回响应
-		//c.log.Debug("返回响应", zap.Any("packet", ackPacket))
 		c.write(ctx, ackPacket)
 	}
 
@@ -529,6 +541,28 @@ func (c *client) handleSubscribe(subscribe *packet.Subscribe) {
 	defer span.End()
 
 	logger.Debug("received subscribe packet", zap.String("packet", subscribe.String()))
+
+	var subs = make([]*sub.Subscription, 0, len(subscribe.Topics))
+
+	for _, topic := range subscribe.Topics {
+		subs = append(subs, &sub.Subscription{
+			//ShareName:         topic.Name,
+			TopicFilter: topic.Name,
+			//ID:                subscribe.PacketId,
+			QoS:               topic.QoS,
+			NoLocal:           topic.NoLocal,
+			RetainAsPublished: topic.RetainAsPublished,
+			RetainHandling:    topic.RetainHandling,
+		})
+	}
+	subscribeResult, err := c.subscriptionStore.Subscribe(ctx, c.clientId, subs...)
+	if err != nil {
+		logger.Error("err", zap.Error(err))
+		return
+
+	} else {
+		logger.Info("", zap.Any("subscribeResult", subscribeResult))
+	}
 	c.write(ctx, &packet.Suback{
 		Version:  subscribe.Version,
 		PacketId: subscribe.PacketId,
@@ -564,7 +598,7 @@ func (c *client) pollMessageHandler() {
 			return
 		}
 	}
-	var ids []packet.PacketId
+	var ids []packet.Id
 	for {
 		max := uint16(100)
 		if c.opt.MaxInflight < max {
@@ -581,9 +615,9 @@ func (c *client) pollMessageHandler() {
 		c.limit.batchRelease(ids)
 	}
 }
-func (c *client) pollNewMessages(ids []packet.PacketId) (unused []packet.PacketId, err error) {
+func (c *client) pollNewMessages(ids []packet.Id) (unused []packet.Id, err error) {
 	var elems []*queue.Element
-	elems, err = c.queueStore.Read(ids)
+	elems, err = c.queueStore.Read(context.Background(), ids)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +635,7 @@ func (c *client) pollNewMessages(ids []packet.PacketId) (unused []packet.PacketI
 }
 func (c *client) pollInFlights() (bool, error) {
 	var elems []*queue.Element
-	elems, err := c.queueStore.ReadInflight(uint(c.opt.MaxInflight))
+	elems, err := c.queueStore.ReadInflight(context.Background(), uint(c.opt.MaxInflight))
 	if err != nil || len(elems) == 0 {
 		return false, err
 	}

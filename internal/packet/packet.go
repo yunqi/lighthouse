@@ -34,8 +34,8 @@ const (
 	// SubscribeFailure 订阅失败
 	SubscribeFailure = 0x80
 
-	MaxPacketID PacketId = 65535
-	MinPacketID PacketId = 1
+	MaxPacketID Id = 65535
+	MinPacketID Id = 1
 	// UTF8EncodedStringsMaxLen There is a limit on the size of a string that can be passed in one of these UTF-8 encoded string components; you cannot use a string that would encode to more than 65535 bytes.
 	// http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Table_2.2_-
 	// 2 byte = uint16
@@ -54,7 +54,7 @@ const (
 //Packet type
 const (
 	// RESERVED Forbidden
-	RESERVED PacketType = iota
+	RESERVED Type = iota
 	// CONNECT Client request to connect to Server
 	CONNECT
 	// CONNACK Connect acknowledgment
@@ -153,10 +153,10 @@ type (
 	Version byte
 	// QoS 消息质量
 	QoS = byte
-	// PacketId 数据包ID
-	PacketId = uint16
+	// Id  数据包ID
+	Id = uint16
 
-	PacketType = byte
+	Type = byte
 
 	// Packet defines the interface for structs intended to hold
 	// decoded MQTT packets, either from being read or before being
@@ -168,7 +168,6 @@ type (
 		Decode(r io.Reader) (err error)
 		// String is mainly used in logging, debugging and testing.
 		String() string
-		//Context() context.Context
 	}
 )
 

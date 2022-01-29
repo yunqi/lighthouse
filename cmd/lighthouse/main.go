@@ -6,6 +6,8 @@ import (
 	"github.com/yunqi/lighthouse/config"
 	_ "github.com/yunqi/lighthouse/internal/persistence/session/memory"
 	_ "github.com/yunqi/lighthouse/internal/persistence/session/redis"
+	_ "github.com/yunqi/lighthouse/internal/persistence/subscription/memory"
+	_ "github.com/yunqi/lighthouse/internal/persistence/subscription/redis"
 	"github.com/yunqi/lighthouse/internal/server"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"github.com/yunqi/lighthouse/internal/xtrace"

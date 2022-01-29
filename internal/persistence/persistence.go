@@ -18,11 +18,17 @@ package persistence
 
 import (
 	"github.com/yunqi/lighthouse/internal/persistence/session"
+	"github.com/yunqi/lighthouse/internal/persistence/subscription"
+)
+
+const (
+	Memory = "memory"
+	Redis  = "redis"
 )
 
 var (
-	sessionStores = map[string]session.NewStore{}
-	//queueStores   = map[string]SessionPersistence{}
+	sessionStores      = map[string]session.NewStore{}
+	subscriptionStores = map[string]subscription.NewStore{}
 )
 
 func RegisterSessionStore(name string, store session.NewStore) {
@@ -33,11 +39,11 @@ func GetSessionStore(name string) (store session.NewStore, ok bool) {
 	return s, ok
 }
 
-//
-//func RegisterQueueStore(name string, store queue.Store) {
-//	queueStores[name] = store
-//}
-//func GetQueueStore(name string) (store queue.Store, ok bool) {
-//	s, ok := queueStores[name]
-//	return s, ok
-//}
+func RegisterSubscriptionStore(name string, store subscription.NewStore) {
+	subscriptionStores[name] = store
+}
+
+func GetSubscriptionStore(name string) (store subscription.NewStore, ok bool) {
+	s, ok := subscriptionStores[name]
+	return s, ok
+}

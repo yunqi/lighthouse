@@ -30,7 +30,7 @@ type packetIdLimiter struct {
 	limit             uint16
 	exit              bool
 	lockedPacketIdMap *xbitmap.Bitmap // packet id in-use
-	freePacketId      packet.PacketId // next available id
+	freePacketId      packet.Id       // next available id
 }
 
 func newPacketIDLimiter(limit uint16) *packetIdLimiter {
@@ -60,7 +60,7 @@ func (p *packetIdLimiter) unlock() {
 }
 
 // markUsedLocked marks the given id as used.
-func (p *packetIdLimiter) markUsedLocked(packetId packet.PacketId) {
+func (p *packetIdLimiter) markUsedLocked(packetId packet.Id) {
 	p.used++
 	p.lockedPacketIdMap.Set(packetId, 1)
 }
@@ -70,7 +70,7 @@ func (p *packetIdLimiter) unlockAndSignal() {
 	p.cond.Signal()
 }
 
-func (p *packetIdLimiter) releaseLocked(packetId packet.PacketId) {
+func (p *packetIdLimiter) releaseLocked(packetId packet.Id) {
 	if p.lockedPacketIdMap.Get(packetId) == 1 {
 		p.lockedPacketIdMap.Set(packetId, 0)
 		p.used--
@@ -78,14 +78,14 @@ func (p *packetIdLimiter) releaseLocked(packetId packet.PacketId) {
 }
 
 // release marks the given id list as unused
-func (p *packetIdLimiter) release(id packet.PacketId) {
+func (p *packetIdLimiter) release(id packet.Id) {
 	p.lock()
 	p.releaseLocked(id)
 	p.unlock()
 	p.cond.Signal()
 }
 
-func (p *packetIdLimiter) batchRelease(packetIds []packet.PacketId) {
+func (p *packetIdLimiter) batchRelease(packetIds []packet.Id) {
 	p.lock()
 	for _, packetId := range packetIds {
 		p.releaseLocked(packetId)
@@ -99,7 +99,7 @@ func (p *packetIdLimiter) batchRelease(packetIds []packet.PacketId) {
 // If there is no available id, the call will be blocked until at least one packet id is available or the limiter has been closed.
 // return 0 means the limiter is closed.
 // the return number = min(max, i.used).
-func (p *packetIdLimiter) pollPacketIds(max uint16) (id []packet.PacketId) {
+func (p *packetIdLimiter) pollPacketIds(max uint16) (id []packet.Id) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 	for p.used >= p.limit && !p.exit {

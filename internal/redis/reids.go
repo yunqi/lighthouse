@@ -87,13 +87,13 @@ func (r *Redis) getRedis() (Client, error) {
 }
 
 // Hmget is the implementation of redis hmget command.
-func (r *Redis) Hmget(key string, fields ...string) (val []interface{}, err error) {
+func (r *Redis) Hmget(ctx context.Context, key string, fields ...string) (val []interface{}, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 
 		v, err := conn.HMGet(ctx, key, fields...).Result()
@@ -109,13 +109,13 @@ func (r *Redis) Hmget(key string, fields ...string) (val []interface{}, err erro
 }
 
 // Hset is the implementation of redis hset command.
-func (r *Redis) Hset(key, field string, value interface{}) error {
+func (r *Redis) Hset(ctx context.Context, key, field string, value interface{}) error {
 	return r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 
 		return conn.HSet(ctx, key, field, value).Err()
@@ -123,14 +123,14 @@ func (r *Redis) Hset(key, field string, value interface{}) error {
 }
 
 // Hdel is the implementation of redis hdel command.
-func (r *Redis) Hdel(key string, fields ...string) (val bool, err error) {
+func (r *Redis) Hdel(ctx context.Context, key string, fields ...string) (val bool, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
 
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		v, err := conn.HDel(ctx, key, fields...).Result()
 		if err != nil {
@@ -145,26 +145,26 @@ func (r *Redis) Hdel(key string, fields ...string) (val bool, err error) {
 }
 
 // Hmset is the implementation of redis hmset command.
-func (r *Redis) Hmset(key string, fieldsAndValues map[string]interface{}) error {
+func (r *Redis) Hmset(ctx context.Context, key string, fieldsAndValues map[string]interface{}) error {
 	return r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		return conn.HMSet(ctx, key, fieldsAndValues).Err()
 	}, acceptable)
 }
 
 // Hscan is the implementation of redis hscan command.
-func (r *Redis) Hscan(key string, cursor uint64, match string, count int64) (keys []string, cur uint64, err error) {
+func (r *Redis) Hscan(ctx context.Context, key string, cursor uint64, match string, count int64) (keys []string, cur uint64, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		keys, cur, err = conn.HScan(ctx, key, cursor, match, count).Result()
 		return err
@@ -174,13 +174,13 @@ func (r *Redis) Hscan(key string, cursor uint64, match string, count int64) (key
 }
 
 // Scan is the implementation of redis scan command.
-func (r *Redis) Scan(cursor uint64, match string, count int64) (keys []string, cur uint64, err error) {
+func (r *Redis) Scan(ctx context.Context, cursor uint64, match string, count int64) (keys []string, cur uint64, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		keys, cur, err = conn.Scan(ctx, cursor, match, count).Result()
 		return err
@@ -194,13 +194,13 @@ func acceptable(err error) bool {
 }
 
 // Del deletes keys.
-func (r *Redis) Del(keys ...string) (val int, err error) {
+func (r *Redis) Del(ctx context.Context, keys ...string) (val int, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		v, err := conn.Del(ctx, keys...).Result()
 		if err != nil {
@@ -214,13 +214,13 @@ func (r *Redis) Del(keys ...string) (val int, err error) {
 	return
 }
 
-func (r *Redis) Ping() error {
+func (r *Redis) Ping(ctx context.Context) error {
 	err := r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		err = conn.Ping(ctx).Err()
 		return err
@@ -230,13 +230,13 @@ func (r *Redis) Ping() error {
 }
 
 // Llen is the implementation of redis llen command.
-func (r *Redis) Llen(key string) (val int, err error) {
+func (r *Redis) Llen(ctx context.Context, key string) (val int, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		v, err := conn.LLen(ctx, key).Result()
 		if err != nil {
@@ -251,13 +251,13 @@ func (r *Redis) Llen(key string) (val int, err error) {
 }
 
 // Hgetall is the implementation of redis hgetall command.
-func (r *Redis) Hgetall(key string) (val map[string]string, err error) {
+func (r *Redis) Hgetall(ctx context.Context, key string) (val map[string]string, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		val, err = conn.HGetAll(ctx, key).Result()
 		return err
@@ -267,13 +267,13 @@ func (r *Redis) Hgetall(key string) (val map[string]string, err error) {
 }
 
 // Lrem is the implementation of redis lrem command.
-func (r *Redis) Lrem(key string, count int, value interface{}) (val int, err error) {
+func (r *Redis) Lrem(ctx context.Context, key string, count int, value interface{}) (val int, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		v, err := conn.LRem(ctx, key, int64(count), value).Result()
 		if err != nil {
@@ -288,13 +288,13 @@ func (r *Redis) Lrem(key string, count int, value interface{}) (val int, err err
 }
 
 // Rpush is the implementation of redis rpush command.
-func (r *Redis) Rpush(key string, values ...interface{}) (val int, err error) {
+func (r *Redis) Rpush(ctx context.Context, key string, values ...interface{}) (val int, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		v, err := conn.RPush(ctx, key, values...).Result()
 		if err != nil {
@@ -309,13 +309,13 @@ func (r *Redis) Rpush(key string, values ...interface{}) (val int, err error) {
 }
 
 // Lrange is the implementation of redis lrange command.
-func (r *Redis) Lrange(key string, start, stop int) (val []string, err error) {
+func (r *Redis) Lrange(ctx context.Context, key string, start, stop int) (val []string, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		val, err = conn.LRange(ctx, key, int64(start), int64(stop)).Result()
 		return err
@@ -325,13 +325,13 @@ func (r *Redis) Lrange(key string, start, stop int) (val []string, err error) {
 }
 
 // Lset is the implementation of redis lset command.
-func (r *Redis) Lset(key string, index int64, value interface{}) (val string, err error) {
+func (r *Redis) Lset(ctx context.Context, key string, index int64, value interface{}) (val string, err error) {
 	err = r.brk.DoWithAcceptable(func() error {
 		conn, err := r.getRedis()
 		if err != nil {
 			return err
 		}
-		ctx, cancelFunc := r.getContext()
+		ctx, cancelFunc := r.getContext(ctx)
 		defer cancelFunc()
 		val, err = conn.LSet(ctx, key, index, value).Result()
 		return err
@@ -339,8 +339,8 @@ func (r *Redis) Lset(key string, index int64, value interface{}) (val string, er
 
 	return
 }
-func (r *Redis) getContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), r.option.Timeout)
+func (r *Redis) getContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, r.option.Timeout)
 }
 
 func (r *Redis) Close() error {

@@ -23,6 +23,7 @@ import (
 	"github.com/yunqi/lighthouse/internal/goroutine"
 	"github.com/yunqi/lighthouse/internal/persistence"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
+	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	"github.com/yunqi/lighthouse/internal/xlog"
 	"github.com/yunqi/lighthouse/internal/xtrace"
 	"go.opentelemetry.io/otel"
@@ -49,7 +50,8 @@ type (
 		websocketListen   string
 		tcpListener       net.Listener //tcp listeners
 		websocketListener *websocket.Conn
-		sessions          session.Store
+		sessionStore      session.Store
+		subscriptionStore subscription.Store
 		log               *xlog.Log
 		tracer            trace.Tracer
 	}
@@ -135,6 +137,7 @@ func (s *server) init(opts *Options) {
 	s.websocketListen = opts.websocketListen
 	s.log = xlog.LoggerModule("server")
 
+	// session store
 	sessionStore, ok := persistence.GetSessionStore(opts.persistence.Session.Type)
 	if !ok {
 		s.log.Panic("invalid session store")
@@ -143,8 +146,21 @@ func (s *server) init(opts *Options) {
 	if store, err := sessionStore(&opts.persistence.Session); err != nil {
 		s.log.Panic("session store", zap.Error(err))
 	} else {
-		s.sessions = store
+		s.sessionStore = store
 		s.log.Info("session store", zap.String("type", opts.persistence.Session.Type))
+	}
+
+	// subscriptionStore store
+	subscriptionStoreFunc, ok := persistence.GetSubscriptionStore(opts.persistence.Subscription.Type)
+	if !ok {
+		s.log.Panic("invalid subscriptionStore store")
+	}
+
+	if subscriptionStore, err := subscriptionStoreFunc(&opts.persistence.Subscription); err != nil {
+		s.log.Panic("subscriptionStore store", zap.Error(err))
+	} else {
+		s.subscriptionStore = subscriptionStore
+		s.log.Info("subscriptionStore store", zap.String("type", opts.persistence.Session.Type))
 	}
 
 	ln, err := net.Listen("tcp", s.tcpListen)

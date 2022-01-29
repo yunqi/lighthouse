@@ -19,7 +19,7 @@ type Store struct {
 	key          string
 	clientID     string
 	r            *red.Redis
-	unackpublish map[packet.PacketId]struct{}
+	unackpublish map[packet.Id]struct{}
 	timeout      time.Duration
 }
 
@@ -33,18 +33,18 @@ func New(opts Options) *Store {
 		clientID:     opts.ClientID,
 		key:          getKey(opts.ClientID),
 		r:            opts.R,
-		unackpublish: make(map[packet.PacketId]struct{}),
+		unackpublish: make(map[packet.Id]struct{}),
 	}
 }
 
 func getKey(clientID string) string {
 	return unackPrefix + clientID
 }
-func (s *Store) Init(cleanStart bool) error {
+func (s *Store) Init(ctx context.Context, cleanStart bool) error {
 	if cleanStart {
-		s.unackpublish = make(map[packet.PacketId]struct{})
+		s.unackpublish = make(map[packet.Id]struct{})
 
-		_, err := s.r.Del(s.key)
+		_, err := s.r.Del(ctx, s.key)
 		if err != nil {
 			return err
 		}
@@ -56,12 +56,12 @@ func (s *Store) getContext() (context.Context, context.CancelFunc) {
 	return ctx, cancelFunc
 }
 
-func (s *Store) Set(id packet.PacketId) (bool, error) {
+func (s *Store) Set(ctx context.Context, id packet.Id) (bool, error) {
 	// from cache
 	if _, ok := s.unackpublish[id]; ok {
 		return true, nil
 	}
-	err := s.r.Hset(s.key, strconv.FormatUint(uint64(id), 10), "1")
+	err := s.r.Hset(ctx, s.key, strconv.FormatUint(uint64(id), 10), "1")
 	if err != nil {
 		return false, err
 	}
@@ -69,8 +69,8 @@ func (s *Store) Set(id packet.PacketId) (bool, error) {
 	return false, nil
 }
 
-func (s *Store) Remove(id packet.PacketId) error {
-	_, err := s.r.Hdel(s.key, strconv.FormatUint(uint64(id), 10))
+func (s *Store) Remove(ctx context.Context, id packet.Id) error {
+	_, err := s.r.Hdel(ctx, s.key, strconv.FormatUint(uint64(id), 10))
 	if err != nil {
 		return err
 	}

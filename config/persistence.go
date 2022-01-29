@@ -4,8 +4,9 @@ import "time"
 
 type (
 	Persistence struct {
-		Session StoreType `yaml:"session"`
-		Queue   StoreType `yaml:"queue"`
+		Session      StoreType `yaml:"session"`
+		Subscription StoreType `yaml:"subscription"`
+		Queue        StoreType `yaml:"queue"`
 	}
 
 	StoreType struct {
