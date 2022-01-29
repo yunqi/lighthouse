@@ -505,7 +505,6 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 	ctx, span, logger := c.getTraceLog("publish")
 	defer span.End()
 	logger.Debug("received publish packet", zap.String("packet", publish.String()))
-	//msg := message.FromPublish(publish)
 	var ackPacket packet.Packet
 	switch publish.QoS {
 	case packet.QoS1:
@@ -516,7 +515,6 @@ func (c *client) handlePublish(publish *packet.Publish) *xerror.Error {
 
 	if ackPacket != nil {
 		// 返回响应
-		//c.log.Debug("返回响应", zap.Any("packet", ackPacket))
 		c.write(ctx, ackPacket)
 	}
 
