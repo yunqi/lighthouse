@@ -54,7 +54,6 @@ func LoggerModule(moduleName string) *Log {
 func (l *Log) WithContext(ctx context.Context) *zap.Logger {
 	spanId := spanIdFromContext(ctx)
 	straceId := traceIdFromContext(ctx)
-
 	return l.With(
 		zap.String("traceId", straceId),
 		zap.String("spanId", spanId),

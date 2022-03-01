@@ -93,7 +93,6 @@ func loadServerOptions(opts ...Option) *Options {
 }
 
 func (s *server) ServeTCP() {
-	//propagator := otel.GetTextMapPropagator()
 	s.tracer = otel.GetTracerProvider().Tracer(xtrace.Name)
 
 	defer func() {

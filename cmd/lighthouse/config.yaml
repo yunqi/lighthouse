@@ -6,7 +6,7 @@ log:
   filename: log.log
 persistence:
   session:
-    type: redis
+    type: memory
     # The redis configuration only take effect when type == redis.
     redis:
       # redis server address
@@ -26,7 +26,7 @@ persistence:
   queue:
     type: memory
   subscription:
-    type: redis
+    type: memory
     redis:
       # redis server address
       addr: "127.0.0.1:6379"
