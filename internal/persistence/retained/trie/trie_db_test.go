@@ -79,7 +79,7 @@ func TestTrieDB_GetMatchedMessages(t *testing.T) {
 			Payload: []byte{1, 2, 3},
 		},
 	}
-	var tt = []struct {
+	tt := []struct {
 		TopicFilter string
 		expected    map[string]*message.Message
 	}{
@@ -169,7 +169,6 @@ func TestTrieDB_GetMatchedMessages(t *testing.T) {
 				a.Equal(v.Payload, got[k].Payload)
 			}
 		})
-
 	}
 }
 
