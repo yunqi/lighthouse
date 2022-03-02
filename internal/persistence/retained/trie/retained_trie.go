@@ -6,9 +6,11 @@ import (
 	"strings"
 )
 
-const delimiter = "/"
-const poundSign = "#"
-const plus = "+"
+const (
+	delimiter = "/"
+	poundSign = "#"
+	plus      = "+"
+)
 
 // children
 type children map[string]*topicNode

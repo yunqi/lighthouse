@@ -13,6 +13,13 @@ type trieDB struct {
 	systemTrie *topicNode
 }
 
+func NewStore() *trieDB {
+	return &trieDB{
+		userTrie:   newTopicTrie(),
+		systemTrie: newTopicTrie(),
+	}
+}
+
 func (t *trieDB) Iterate(fn retained.IterateFn) {
 	t.RLock()
 	defer t.RUnlock()
@@ -56,7 +63,7 @@ func (t *trieDB) AddOrReplace(message *message.Message) {
 	t.getTrie(message.Topic).addRetainMsg(message.Topic, message)
 }
 
-// remove remove the retain message of the topic name.
+// Remove removes the retain message of the topic name.
 func (t *trieDB) Remove(topicName string) {
 	t.Lock()
 	defer t.Unlock()
@@ -68,11 +75,4 @@ func (t *trieDB) GetMatchedMessages(topicFilter string) []*message.Message {
 	t.RLock()
 	defer t.RUnlock()
 	return t.getTrie(topicFilter).getMatchedMessages(topicFilter)
-}
-
-func NewStore() *trieDB {
-	return &trieDB{
-		userTrie:   newTopicTrie(),
-		systemTrie: newTopicTrie(),
-	}
 }

@@ -12,7 +12,7 @@ var pool, _ = ants.NewPool(-1, ants.WithLogger(log{}))
 type log struct{}
 
 func (l log) Printf(format string, args ...interface{}) {
-	xlog.Info("[Ants] logger", zap.String("msg", fmt.Sprintf(format, args)))
+	xlog.Info("[Ants] logger", zap.String("msg", fmt.Sprintf(format, args...)))
 }
 
 // Go starts a goroutine.
