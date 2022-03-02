@@ -51,10 +51,6 @@ func (s *Store) Init(ctx context.Context, cleanStart bool) error {
 	}
 	return nil
 }
-func (s *Store) getContext() (context.Context, context.CancelFunc) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), s.timeout)
-	return ctx, cancelFunc
-}
 
 func (s *Store) Set(ctx context.Context, id packet.Id) (bool, error) {
 	// from cache

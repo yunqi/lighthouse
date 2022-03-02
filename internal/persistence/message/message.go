@@ -96,6 +96,23 @@ func (m *Message) TotalBytes(version packet.Version) uint32 {
 	}
 	return 5 + uint32(remainLenght)
 }
+
+func (m *Message) Copy() *Message {
+	return &Message{
+		Dup:                    m.Dup,
+		QoS:                    m.QoS,
+		Retained:               m.Retained,
+		Topic:                  m.Topic,
+		Payload:                m.Payload,
+		PacketId:               m.PacketId,
+		ContentType:            m.ContentType,
+		CorrelationData:        m.CorrelationData,
+		MessageExpiry:          m.MessageExpiry,
+		PayloadFormat:          m.PayloadFormat,
+		ResponseTopic:          m.ResponseTopic,
+		SubscriptionIdentifier: m.SubscriptionIdentifier,
+	}
+}
 func getVariableLength(l int) int {
 	if l <= packet.RemainLength1ByteMax {
 		return 1
