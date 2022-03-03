@@ -22,6 +22,9 @@ import (
 	"github.com/yunqi/lighthouse/config"
 	"github.com/yunqi/lighthouse/internal/goroutine"
 	"github.com/yunqi/lighthouse/internal/persistence"
+	"github.com/yunqi/lighthouse/internal/persistence/message"
+	"github.com/yunqi/lighthouse/internal/persistence/retained"
+	"github.com/yunqi/lighthouse/internal/persistence/retained/trie"
 	"github.com/yunqi/lighthouse/internal/persistence/session"
 	"github.com/yunqi/lighthouse/internal/persistence/subscription"
 	"github.com/yunqi/lighthouse/internal/xlog"
@@ -30,6 +33,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -52,6 +56,8 @@ type (
 		websocketListener *websocket.Conn
 		sessionStore      session.Store
 		subscriptionStore subscription.Store
+		retainedStore     retained.Store
+		clients           sync.Map //
 		log               *xlog.Log
 		tracer            trace.Tracer
 	}
@@ -141,7 +147,6 @@ func (s *server) init(opts *Options) {
 	if !ok {
 		s.log.Panic("invalid session store")
 	}
-
 	if store, err := sessionStore(&opts.persistence.Session); err != nil {
 		s.log.Panic("session store", zap.Error(err))
 	} else {
@@ -154,7 +159,6 @@ func (s *server) init(opts *Options) {
 	if !ok {
 		s.log.Panic("invalid subscriptionStore store")
 	}
-
 	if subscriptionStore, err := subscriptionStoreFunc(&opts.persistence.Subscription); err != nil {
 		s.log.Panic("subscriptionStore store", zap.Error(err))
 	} else {
@@ -162,6 +166,7 @@ func (s *server) init(opts *Options) {
 		s.log.Info("subscriptionStore store", zap.String("type", opts.persistence.Session.Type))
 	}
 
+	// tcp
 	ln, err := net.Listen("tcp", s.tcpListen)
 	if err != nil {
 		s.log.Panic("start tcp error", zap.String("tcp", s.tcpListen), zap.Error(err))
@@ -169,4 +174,13 @@ func (s *server) init(opts *Options) {
 	s.log.Info("start tcp", zap.String("TCP", s.tcpListen))
 	s.tcpListener = ln
 
+	// retain msg
+	s.retainedStore = trie.NewStore()
+}
+
+func (s *server) deliverMessage() func(srcClientId string, msg *message.Message, options subscription.IterationOptions) (matched bool) {
+	return func(srcClientId string, msg *message.Message, options subscription.IterationOptions) (matched bool) {
+
+		return true
+	}
 }
