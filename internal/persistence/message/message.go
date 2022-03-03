@@ -127,16 +127,14 @@ func getVariableLength(l int) int {
 	return 0
 }
 
-func ToPublish(msg *Message, version packet.Version) *packet.Publish {
-	pub := &packet.Publish{
-		Dup:       msg.Dup,
-		QoS:       msg.QoS,
-		PacketId:  msg.PacketId,
-		Retain:    msg.Retained,
-		TopicName: []byte(msg.Topic),
-		Payload:   msg.Payload,
+func (m *Message) ToPublish(version packet.Version) *packet.Publish {
+	return &packet.Publish{
+		Dup:       m.Dup,
+		QoS:       m.QoS,
+		PacketId:  m.PacketId,
+		Retain:    m.Retained,
+		TopicName: []byte(m.Topic),
+		Payload:   m.Payload,
 		Version:   version,
 	}
-
-	return pub
 }
